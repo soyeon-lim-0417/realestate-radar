@@ -39,22 +39,33 @@ jobs:
           RONE_KEY: ${{ secrets.RONE_KEY }}
           TZ: Asia/Seoul
         run: |
+          set +e
+          export PYTHONUNBUFFERED=1
+          mkdir -p data
+          : > data/run.log
+          # 실행 기록을 data/run.log 에 남겨요 (인증키는 *** 로 가림)
+          step() {
+            echo "== $*" | tee -a data/run.log
+            "$@" 2>&1 | sed -u "s/${DATA_GO_KR_KEY:-__none__}/***/g" | tee -a data/run.log
+            rc=${PIPESTATUS[0]}
+            [ $rc -eq 0 ] || echo "!! 실패($rc): $*" | tee -a data/run.log
+          }
           if [ -n "$DATA_GO_KR_KEY" ]; then
-            python collector/fetch_molit.py
-            python collector/fetch_kapt.py || echo "K-apt 는 이번에 건너뜀"
-            python collector/fetch_rone.py || echo "R-ONE 은 이번에 건너뜀"
-            python collector/build.py
+            step python collector/fetch_molit.py
+            step python collector/fetch_kapt.py
+            step python collector/fetch_rone.py
+            step python collector/build.py
           else
             echo "인증키가 아직 없어 테스트 데이터로 사이트를 만들어요"
-            python collector/make_sample.py
-            python collector/build.py --sample
+            step python collector/make_sample.py
+            step python collector/build.py --sample
           fi
 
       - name: 모은 데이터 저장
         run: |
           git config user.name "radar-bot"
           git config user.email "radar-bot@users.noreply.github.com"
-          for p in data/raw data/history data/rone.json data/kapt.json site/data; do
+          for p in data/raw data/history data/rone.json data/kapt.json data/run.log site/data; do
             [ -e "$p" ] && git add "$p"
           done
           git diff --cached --quiet || git commit -m "데이터 업데이트 $(TZ=Asia/Seoul date +%F)"

@@ -94,7 +94,7 @@ def main():
     months = list(months_between(cfg["history_start"], today))
     recent = set(months[-cfg.get("refetch_recent_months", 3):])
 
-    calls = 0
+    calls, errors = 0, []
     kinds = ["trade", "rent"]
     # 전월세 API 는 활용신청을 안 했을 수도 있어요 → 한 번 시험해 보고 안 되면 건너뜀
     try:
@@ -110,12 +110,20 @@ def main():
                 path = folder / f"{ym}.json"
                 if path.exists() and ym not in recent:
                     continue
-                rows = fetch_month(kind, key, region["lawd_cd"], ym)
+                try:
+                    rows = fetch_month(kind, key, region["lawd_cd"], ym)
+                except Exception as e:  # 한 달치가 안 돼도 나머지는 계속
+                    errors.append(f"{region['name']} {kind} {ym}: {e}")
+                    if len(errors) >= 5 and calls == 0:
+                        break
+                    continue
                 path.write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
                 calls += 1
                 print(f"{region['name']} {kind} {ym}: {len(rows)}건")
                 time.sleep(0.15)
-    print(f"완료 · API 호출 {calls}회")
+    print(f"완료 · API 호출 {calls}회 · 오류 {len(errors)}건")
+    for e in errors[:10]:
+        print("  오류:", e)
 
 
 if __name__ == "__main__":
