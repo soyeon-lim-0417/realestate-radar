@@ -7,7 +7,7 @@
   meta.json        업데이트 시각, 테스트 여부
   recommend.json   오늘의 추천 10 + 요약 숫자
   units.json       후보 단지·평형 전체 목록 (가벼운 버전)
-  units/<id>.json  단지 상세 (거래 내역, 월별 흐름, 전세)
+  units/<id>.json  단지 상세 (거래 내역, 월별 흐름, 전세, 세대수)
   regions.json     구별 흐름 (월별 가격·거래량·전세, 신호 체크)
 """
 import json
