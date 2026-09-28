@@ -27,7 +27,7 @@ KST = timezone(timedelta(hours=9))
 # ---------- 작은 도구들 ----------
 def to_int(s):
     try:
-        return int(str(s).replace(",", "").strip())
+        return int(float(str(s).replace(",", "").strip()))
     except (ValueError, TypeError):
         return None
 
