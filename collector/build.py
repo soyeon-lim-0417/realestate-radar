@@ -197,11 +197,13 @@ def region_report(name, trades, rents, last_ym):
     frac = n_ok / len(avail) if avail else 0
     status = "회복 신호" if frac >= 0.75 else ("지켜보기" if frac >= 0.5 else "약세")
     tone = "good" if frac >= 0.75 else ("watch" if frac >= 0.5 else "weak")
+    if not trades:
+        status, tone = "자료 받는 중", "weak"
     summary = {
         "good": "떨어지던 값이 멈추고 거래가 살아나는 중이에요.",
         "watch": "좋은 신호와 나쁜 신호가 섞여 있어요. 조금 더 지켜봐요.",
         "weak": "아직 가격이 약하거나 거래가 살아나지 않았어요.",
-    }[tone]
+    }[tone] if trades else "실거래 자료를 아직 다 받지 못했어요. 다음 업데이트 때 채워져요."
     last_j = next((s["jratio"] for s in reversed(series) if s["jratio"]), None)
     return {
         "name": name, "status": status, "tone": tone, "okCount": n_ok, "checkCount": len(avail), "summary": summary,
