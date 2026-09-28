@@ -149,6 +149,16 @@
   }
 
   // ---------- 공통 조각 ----------
+  const PARTS = {
+    price_drop: ['전고점보다 싼지', '2020~22년 상승장 최고가 대비 지금 가격. 25% 싸면 만점'],
+    growth: ['오를 가능성', '동네 신호(거래·가격·전세·고점 여유) + 전세가율'],
+    gangnam: ['강남 출퇴근', '강남역까지 대략 시간. 25분이면 만점, 70분이면 0점'],
+    school: ['학군', '학원가·학군지로 표시한 동 (내 조건에서 수정)'],
+    size: ['대단지', '1,500세대 이상 만점 · 1,000세대 이상 높은 점수'],
+    liquidity: ['환금성', '1년에 세대의 6% 이상 거래되면 만점 (팔기 쉬운 정도)'],
+    structure: ['계단식', '계단식 만점 · 혼합식 중간 · 복도식 낮음'],
+    age: ['연식', '새 아파트일수록 높음'],
+  };
   const hhText = (c) => {
     if (!c || !c.households) return '';
     return (c.source === 'kapt' ? '' : '약 ') + c.households.toLocaleString('ko-KR') + '세대';
@@ -186,8 +196,7 @@
     const changes = favChanges(units);
     const changed = changes.filter((c) => c.changed);
     const w = rec.weights;
-    const order = [['growth', '오를 가능성 (동네 흐름 · 전세)'], ['price_drop', '전고점보다 싼지'], ['commute', '출퇴근'], ['school', '학군'], ['condition', '단지 컨디션 (연식)']]
-      .sort((a, b) => w[b[0]] - w[a[0]]);
+    const order = Object.keys(PARTS).filter((k) => w[k]).map((k) => [k, PARTS[k][0]]).sort((a, b) => w[b[0]] - w[a[0]]);
     $app.innerHTML = `
     <section class="head">
       <div>${sampleNote(meta)}
@@ -223,7 +232,7 @@
           <div><div class="name">${esc(u.name)}${u.isNew ? '<span class="new">NEW</span>' : ''}</div>
             <div class="small muted">${esc(u.region)} ${esc(u.dong)} · ${u.pyeong}평 · ${u.built || '?'}년${hhText(u.complex) ? ' · ' + hhText(u.complex) : ''}</div></div>
           <div><div style="font-weight:600;font-size:16px">${won(u.last.price)} <span class="small muted" style="font-weight:400">${ym2(u.last.date)}</span></div>
-            <div class="small muted">최고 ${won(u.peak && u.peak.price)}</div></div>
+            <div class="small muted">${u.peak ? '전고점 ' + won(u.peak.price) : '전고점 없음 (신축)'}</div></div>
           <div>${badge(u.drop)}</div>
           <div style="display:flex;flex-direction:column;gap:8px;min-width:0"><div style="font-size:14px">${esc(u.reason)}</div>
             <div class="tags">${u.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join('')}</div></div>
@@ -296,6 +305,8 @@
     if (age >= 25) cons.push('오래된 아파트라 주차·배관 상태를 꼭 확인해야 해요.');
     if (u.jratio != null && u.jratio < 0.45) cons.push('전세가가 집값의 절반이 안 돼 받쳐주는 힘이 약해요.');
     if (region && region.tone !== 'good') cons.push(`${region.name} 흐름이 아직 '${region.status}' 상태예요.`);
+    if (u.drop != null && u.drop < 0) cons.push(`이미 2021~22년 전고점보다 ${Math.round(-u.drop * 100)}% 비싸게 거래되고 있어요.`);
+    if (u.complex && u.complex.hall === '복도식') cons.push('복도식이라 사생활·단열 면에서 계단식보다 불리해요.');
     const recentTrades = u.trades.slice(-12).reverse();
 
     $app.innerHTML = `
@@ -313,8 +324,8 @@
       <div class="tile"><div class="small muted">가장 최근 거래</div><div class="v">${won(u.last.price)}</div><div class="small muted">${dateLabel(u.last.date)} · ${u.last.floor}층</div></div>
       <div class="tile"><div class="small muted">비교 기준 가격</div><div class="v">${won(u.recent)}</div><div class="small muted">${esc(u.recentBasis || '')} (최근 거래·3건 중간값 중 높은 값)</div></div>
       <div class="tile"><div class="small muted">호가 · KB시세</div><div class="soon">2단계에서 연결</div><div class="small muted">네이버·KB</div></div>
-      <div class="tile"><div class="small muted">전고점 (${u.peak ? dateLabel(u.peak.date).slice(0, 7) : '–'})</div><div class="v">${won(pk)}</div><div class="small muted">${u.peak ? u.peak.floor + '층 거래' : ''}</div></div>
-      <div class="tile blue"><div class="small muted">전고점보다</div><div class="v">${u.drop == null ? '–' : u.drop >= 0 ? Math.round(u.drop * 100) + '% 낮음' : Math.round(-u.drop * 100) + '% 높음'}</div></div>
+      <div class="tile"><div class="small muted">전고점 (2020~22년 상승장)</div><div class="v">${u.peak ? won(pk) : '–'}</div><div class="small muted">${u.peak ? dateLabel(u.peak.date).slice(0, 7) + ' · ' + u.peak.floor + '층' : '그때 거래가 없어요 (신축 등)'}${u.ath && u.peak && u.ath.price > u.peak.price ? `<br>역대 최고 ${won(u.ath.price)} (${dateLabel(u.ath.date).slice(0, 7)})` : ''}</div></div>
+      <div class="tile blue"><div class="small muted">전고점보다</div><div class="v">${u.drop == null ? '–' : u.drop >= 0 ? Math.round(u.drop * 100) + '% 낮음' : Math.round(-u.drop * 100) + '% 높음'}</div><div class="small muted">${u.drop != null && u.drop < 0 ? '전고점을 이미 넘었어요' : ''}</div></div>
     </section>
     <section class="row">
       <div class="grow card">
@@ -327,6 +338,12 @@
         <p class="small muted" style="margin:0">저층(${3}층 이하)·직거래·취소된 거래는 점에서 뺐어요. 아래 표에는 모두 보여요.</p>
       </div>
       <aside class="side side-w">
+        ${u.parts ? `<div class="card"><div class="card-head"><h2>점수 내역</h2><span class="big" style="font-size:24px">${u.score}점</span></div>
+          ${Object.keys(PARTS).filter((k) => rec.weights[k]).map((k) => { const v = u.parts[k] || 0; const got = Math.round(v * rec.weights[k]); return `<div data-tip="${esc(PARTS[k][1])}" style="display:flex;align-items:center;gap:10px;font-size:14px">
+            <span style="width:92px">${PARTS[k][0]}</span>
+            <div style="flex:1;height:8px;background:#E5E5EA;border-radius:4px;overflow:hidden"><div style="width:${v * 100}%;height:100%;background:#007AFF"></div></div>
+            <span style="width:56px;text-align:right" class="muted">${got}/${rec.weights[k]}</span></div>`; }).join('')}
+          <div class="small muted">${u.scoreDetail ? `강남 약 ${u.scoreDetail.gangnamMin}분${u.scoreDetail.walk ? ' (역까지 ' + esc(u.scoreDetail.walk) + ')' : ''} · 1년 거래 ${u.scoreDetail.tradesPerYear}건${u.scoreDetail.turnover != null ? ' (세대의 ' + (u.scoreDetail.turnover * 100).toFixed(1) + '%)' : ''}${u.scoreDetail.hall ? ' · ' + esc(u.scoreDetail.hall) : ''}` : ''}. 막대에 마우스를 올리면 기준이 보여요.</div></div>` : ''}
         <div class="card"><h2>${top ? '왜 추천했나요?' : '이 단지 한 줄 평'}</h2>
           <div style="font-size:14px">${esc(u.reason || '조건(예산·거래 수)에 맞지 않아 추천 후보에서 빠진 단지예요.')}</div>
           <div class="tags">${(u.tags || []).map((t) => `<span class="tag">${esc(t)}</span>`).join('')}</div>
@@ -562,7 +579,7 @@
   async function setting() {
     const rec = await load('recommend.json');
     const f = rec.filters, w = rec.weights;
-    const names = { price_drop: '전고점보다 싼지', growth: '오를 가능성', commute: '출퇴근', school: '학군', condition: '단지 컨디션' };
+    const names = Object.fromEntries(Object.entries(PARTS).map(([k, v]) => [k, v[0]]));
     $app.innerHTML = `
     <section class="head"><div><h1 class="h1">내 조건</h1><p class="sub">조건은 저장소의 <b>config.json</b> 파일에서 바꿔요. 바꾸면 다음 날 아침 추천에 반영돼요.</p></div></section>
     <section class="grid g2">
@@ -572,7 +589,7 @@
       <div class="card"><h2>점수 비중 (합계 100)</h2>
         ${Object.keys(names).map((k) => `<div style="display:flex;align-items:center;gap:12px"><span style="width:120px" class="muted">${names[k]}</span>
           <div style="flex:1;height:10px;background:#E5E5EA;border-radius:5px;overflow:hidden"><div style="width:${w[k]}%;height:100%;background:#007AFF;border-radius:5px"></div></div><b style="width:36px;text-align:right">${w[k]}</b></div>`).join('')}
-        <div class="small muted">출퇴근 시간은 구마다 기본값을 쓰고, 동별로 적어 두면 더 정확해져요 (config.json의 commute_by_dong). 학군 좋은 동도 school_by_dong에 적을 수 있어요.</div></div>
+        <div class="small muted">강남까지 시간은 구별 대략값 + 단지에서 역까지 걷는 시간이에요. 동별로 정확한 시간을 적으면 그 값을 써요 (config.json의 gangnam_by_dong). 학군 좋은 동은 school_by_dong에 1~5점으로 적어요.</div></div>
     </section>`;
   }
 

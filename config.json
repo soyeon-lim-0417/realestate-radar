@@ -1,23 +1,45 @@
 {
   "_설명": "이 파일만 고치면 관심 지역·평형·예산·점수 비중을 바꿀 수 있어요.",
-
   "regions": [
-    { "name": "마포구", "lawd_cd": "11440", "commute_min": 25 },
-    { "name": "성동구", "lawd_cd": "11200", "commute_min": 30 },
-    { "name": "영등포구", "lawd_cd": "11560", "commute_min": 20 },
-    { "name": "강서구", "lawd_cd": "11500", "commute_min": 30 },
-    { "name": "동작구", "lawd_cd": "11590", "commute_min": 30 },
-    { "name": "강동구", "lawd_cd": "11740", "commute_min": 30 }
+    {
+      "name": "마포구",
+      "lawd_cd": "11440",
+      "gangnam_min": 35
+    },
+    {
+      "name": "성동구",
+      "lawd_cd": "11200",
+      "gangnam_min": 25
+    },
+    {
+      "name": "영등포구",
+      "lawd_cd": "11560",
+      "gangnam_min": 35
+    },
+    {
+      "name": "강서구",
+      "lawd_cd": "11500",
+      "gangnam_min": 50
+    },
+    {
+      "name": "동작구",
+      "lawd_cd": "11590",
+      "gangnam_min": 25
+    },
+    {
+      "name": "강동구",
+      "lawd_cd": "11740",
+      "gangnam_min": 35
+    }
   ],
-
-  "commute_by_dong": {
-    "_설명": "동별 출퇴근 시간(분)을 알면 적어 주세요. 없으면 구 기본값을 써요. 예: \"공덕동\": 20"
-  },
-
   "school_by_dong": {
-    "_설명": "학군이 좋다고 보는 동에 1~5점. 없으면 보통(3점)으로 계산해요. 예: \"대흥동\": 5"
+    "_설명": "학원가·학군 좋은 동에 1~5점 (없으면 3점). 아래는 널리 알려진 학원가 기준 대략값이라 고쳐 쓰세요.",
+    "명일동": 5,
+    "고덕동": 4,
+    "대흥동": 4,
+    "염리동": 4,
+    "여의도동": 4
   },
-
   "filters": {
     "area_min_m2": 49,
     "area_max_m2": 84,
@@ -29,23 +51,31 @@
     "exclude_low_floor_upto": 3,
     "exclude_direct_deal": true
   },
-
   "weights": {
-    "_설명": "합이 100이 되게. 오를 가능성 > 출퇴근 > 학군 > 컨디션 순서가 기본값",
-    "price_drop": 30,
-    "growth": 30,
-    "commute": 20,
+    "_설명": "합이 100이 되게. 각 항목 0~1점 × 비중",
+    "price_drop": 25,
+    "growth": 20,
+    "gangnam": 15,
     "school": 10,
-    "condition": 10
+    "size": 10,
+    "liquidity": 10,
+    "structure": 5,
+    "age": 5
   },
-
   "history_start": "201901",
   "refetch_recent_months": 3,
   "top_n": 10,
-
   "rone": {
     "_설명": "한국부동산원 R-ONE 키가 있을 때만 사용. 통계표 ID가 바뀌면 여기를 고쳐요.",
     "weekly_sale_index_statbl_id": "T244183132827305",
     "weekly_jeonse_index_statbl_id": ""
+  },
+  "gangnam_by_dong": {
+    "_설명": "동별 '강남역까지 대중교통 시간(분)'을 알면 적어 주세요. 적으면 구 기본값+역까지 걷는 시간 대신 이 값을 써요. 예: \"흑석동\": 25"
+  },
+  "peak_window": {
+    "_설명": "전고점을 찾는 기간 (지난 상승장)",
+    "from": "2020-01-01",
+    "to": "2022-12-31"
   }
 }

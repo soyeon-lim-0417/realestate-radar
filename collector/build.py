@@ -110,6 +110,7 @@ def norm_trade(r, lawd):
         "date": f"{y:04d}-{m:02d}-{d:02d}", "ym": f"{y:04d}{m:02d}",
         "cancelled": (r.get("cdealType") or "").strip().upper() == "O",
         "direct": "직거래" in (r.get("dealingGbn") or ""),
+        "rgst": (r.get("rgstDate") or "").strip(),
     }
 
 
@@ -215,8 +216,13 @@ def region_report(name, trades, rents, last_ym):
 def analyze_unit(ts, rents_by_match, cfg, today):
     f = cfg["filters"]
     ts = sorted(ts, key=lambda t: t["date"])
+    # 등기 안 된 거래: 2023년부터 등기일이 공개돼요. 계약 후 90일이 지났는데 등기가 없으면
+    # 잔금을 안 치렀거나 신고가 띄우기일 수 있어서 계산에서 빼요.
+    rg_cut = (today - timedelta(days=90)).isoformat()
+    unreg = {id(t) for t in ts if not t["cancelled"] and "2023-01-01" <= t["date"] <= rg_cut and not t["rgst"]}
     valid = [t for t in ts if not t["cancelled"]
              and not (f["exclude_direct_deal"] and t["direct"])
+             and id(t) not in unreg
              and t["floor"] > f["exclude_low_floor_upto"]]
     if not valid:
         return None
@@ -231,6 +237,9 @@ def analyze_unit(ts, rents_by_match, cfg, today):
             m = median(nb)
             if t["price"] < m * 0.75 or t["price"] > m * 1.25:
                 outliers.add(id(t))
+        elif i > 0 and t["price"] < valid[i - 1]["price"] * 0.75:
+            # 주변 거래가 적을 땐 바로 앞 거래와 비교: 25% 넘게 싸면 특이 거래(지분·특수관계 등)로 봄
+            outliers.add(id(t))
     valid = [t for t in valid if id(t) not in outliers]
     if not valid:
         return None
@@ -240,10 +249,17 @@ def analyze_unit(ts, rents_by_match, cfg, today):
         d = datetime.fromisoformat(t["date"])
         xs = [u["price"] for u in valid if abs((datetime.fromisoformat(u["date"]) - d).days) <= 183]
         return median(xs)
-    peak = None
+    # 전고점 = 지난 상승장(기본 2020~2022년) 안에서 가장 비싼 거래
+    #  (요즘 거래가 더 비싸면 '전고점 대비 하락'이 아니라 '전고점 돌파')
+    pw = cfg.get("peak_window", {"from": "2020-01-01", "to": "2022-12-31"})
+    peak, ath = None, None
     for t in valid:
         nm = neighborhood_median(t)
-        if nm and t["price"] <= nm * 1.2 and (peak is None or t["price"] > peak["price"]):
+        if not nm or t["price"] > nm * 1.2:
+            continue
+        if ath is None or t["price"] > ath["price"]:
+            ath = t
+        if pw["from"] <= t["date"] <= pw["to"] and (peak is None or t["price"] > peak["price"]):
             peak = t
 
     cut6 = (today - timedelta(days=183)).isoformat()
@@ -284,61 +300,99 @@ def analyze_unit(ts, rents_by_match, cfg, today):
         "recent": round(recent) if recent else None, "recentBasis": basis,
         "last": {"price": last["price"], "date": last["date"], "floor": last["floor"]},
         "drop": (1 - recent / peak["price"]) if (recent and peak) else None,
+        "ath": {"price": ath["price"], "date": ath["date"]} if ath else None,
         "trades2y": sum(1 for t in valid if t["date"] >= cut24),
         "trades1y": sum(1 for t in valid if t["date"] >= cut12),
         "trades6m": len(recent6),
         "jeonse": round(jeonse) if jeonse else None, "jeonseCount": len(j_list),
         "jratio": (jeonse / recent) if (jeonse and recent) else None,
         "trades": [{"d": t["date"], "p": t["price"], "f": t["floor"],
-                    "x": "취소" if t["cancelled"] else ("직거래" if t["direct"] else ("저층" if t["floor"] <= f["exclude_low_floor_upto"] else ("시세와 동떨어짐" if id(t) in outliers else "")))}
+                    "x": "취소" if t["cancelled"] else ("직거래" if t["direct"] else ("등기 안 됨" if id(t) in unreg else ("저층" if t["floor"] <= f["exclude_low_floor_upto"] else ("시세와 동떨어짐" if id(t) in outliers else ""))))}
                    for t in ts],
         "monthly": [{"ym": m, "p": round(median(v))} for m, v in sorted(monthly.items())],
         "jmonthly": [{"ym": m, "p": round(median(v))} for m, v in sorted(jmonthly.items())],
     }
 
 
+WALK = {"5분이내": 3, "5~10분이내": 8, "10~15분이내": 13, "15~20분이내": 18, "20분초과": 23}
+HALL = {"계단식": 1.0, "혼합식": 0.6, "복도식": 0.2}
+
+
 def score_unit(u, region, cfg, today):
+    """항목별 0~1 점수 → 비중(weights)대로 더해 100점 만점."""
     w = cfg["weights"]
     reg_cfg = next(r for r in cfg["regions"] if r["lawd_cd"] == u["lawd"])
-    commute = cfg.get("commute_by_dong", {}).get(u["dong"], reg_cfg.get("commute_min", 40))
-    school = cfg.get("school_by_dong", {}).get(u["dong"], 3)
+    c = u.get("complex") or {}
+    hh = c.get("households")
     age = today.year - (u["built"] or today.year)
+
+    # 강남 접근성: 구별 강남역까지 대략 시간 + 단지에서 지하철역까지 걷는 시간
+    walk = WALK.get(c.get("walk") or "", 10)
+    gmin = cfg.get("gangnam_by_dong", {}).get(u["dong"], reg_cfg.get("gangnam_min", 40) + walk)
+    school = cfg.get("school_by_dong", {}).get(u["dong"], 3)
+    # 환금성: 1년에 단지 세대 중 몇 %가 거래되나 (모르면 거래 건수로)
+    per_year = u.get("complexTrades1y") or 0
+    turnover = per_year / hh if hh else None
+    liquidity = clamp(turnover / 0.06) if turnover is not None else clamp(per_year / 30)
+    size = 0.3 if not hh else (1.0 if hh >= 1500 else 0.85 if hh >= 1000 else 0.5 if hh >= 500 else 0.2)
+    hall = c.get("hall")
+    drop = u["drop"] if u["drop"] is not None else 0
+
     parts = {
-        "price_drop": clamp((u["drop"] or 0) / 0.25),
+        "price_drop": clamp(drop / 0.25),
         "growth": clamp(0.7 * region["okCount"] / max(1, region["checkCount"]) + 0.3 * clamp(((u["jratio"] or 0.45) - 0.4) / 0.3)),
-        "commute": clamp((60 - commute) / 45),
+        "gangnam": clamp((70 - gmin) / 45),
         "school": clamp((school - 1) / 4),
-        "condition": clamp(1 - age / 40),
+        "size": size,
+        "liquidity": liquidity,
+        "structure": HALL.get(hall, 0.5),
+        "age": clamp(1 - age / 35),
     }
-    total = sum(w[k] * v for k, v in parts.items())
-    scale = sum(w[k] for k in parts) or 1
+    total = sum(w.get(k, 0) * v for k, v in parts.items())
+    scale = sum(w.get(k, 0) for k in parts) or 1
     score = round(total / scale * 100)
 
+    peak_txt = "2021~22년 전고점" if u["peak"] else "전고점"
     lines = {
-        "price_drop": f"최고가보다 {round((u['drop'] or 0) * 100)}% 싸게 거래되고 있어요",
-        "growth": f"{region['name']} 흐름이 지금 '{region['status']}' 상태예요",
-        "commute": f"출퇴근 약 {commute}분",
-        "school": "학군 좋은 동네로 표시해 둔 곳이에요",
-        "condition": f"{u['built']}년 준공으로 비교적 새 아파트예요",
+        "price_drop": f"{peak_txt}보다 {round(drop * 100)}% 싸요",
+        "growth": f"{region['name']} 흐름이 '{region['status']}'",
+        "gangnam": f"강남까지 약 {gmin}분",
+        "school": "학군 좋은 동네",
+        "size": f"{hh:,}세대 대단지" if hh else "대단지",
+        "liquidity": "거래가 잘 되는 단지 (팔기 쉬움)",
+        "structure": f"{hall} 구조" if hall else "구조 양호",
+        "age": f"{u['built']}년 준공으로 비교적 새 아파트",
     }
-    top = sorted(parts, key=lambda k: w[k] * parts[k], reverse=True)
-    reason = lines[top[0]] + (". " + lines[top[1]] if len(top) > 1 else "") + "."
+    top = sorted(parts, key=lambda k: w.get(k, 0) * parts[k], reverse=True)
+    reason = " · ".join(lines[k] for k in top[:3])
 
     tags = []
-    d = round((u["drop"] or 0) * 100)
-    if d >= 20:
+    d = round(drop * 100)
+    if u["peak"] and d >= 20:
         tags.append("전고점 20%↓")
-    elif d >= 10:
+    elif u["peak"] and d >= 10:
         tags.append("전고점 10%↓")
-    if u["trades6m"] >= 4:
-        tags.append("거래 활발")
+    elif u["peak"] and d < 0:
+        tags.append("전고점 돌파")
+    if hh and hh >= 1000:
+        tags.append(f"대단지 {hh:,}세대")
+    if hall == "계단식":
+        tags.append("계단식")
+    elif hall == "복도식":
+        tags.append("복도식")
+    if gmin <= 35:
+        tags.append(f"강남 {gmin}분")
+    if liquidity >= 0.8:
+        tags.append("환금성 좋음")
     if u["jratio"] and u["jratio"] >= 0.6:
         tags.append(f"전세가율 {round(u['jratio'] * 100)}%")
     if age <= 10:
         tags.append("신축급")
     elif age >= 30:
         tags.append("준공 30년+ (재건축 연한)")
-    return score, reason, tags, {k: round(v, 2) for k, v in parts.items()}, commute
+    detail = {"gangnamMin": gmin, "walk": c.get("walk"), "school": school, "turnover": round(turnover, 3) if turnover is not None else None,
+              "tradesPerYear": per_year, "hall": hall, "age": age}
+    return score, reason, tags, {k: round(v, 2) for k, v in parts.items()}, detail
 
 
 # ---------- 단지 규모 (세대수) ----------
@@ -434,10 +488,13 @@ def main():
         rents_by_match = defaultdict(list)
         for r in rents:
             rents_by_match[(r["match"], r["bucket"])].append(r)
-        ctotal, cfirst = defaultdict(int), {}
+        ctotal, cfirst, c1y = defaultdict(int), {}, defaultdict(int)
+        cut1y = (today - timedelta(days=365)).isoformat()
         for t in trades:
             if not t["cancelled"]:
                 ctotal[t["key"]] += 1
+                if t["date"] >= cut1y:
+                    c1y[t["key"]] += 1
         groups = defaultdict(list)
         for t in trades:
             if f["area_min_m2"] <= t["bucket"] <= f["area_max_m2"]:  # 84.97㎡ 도 84㎡ 로 봐요
@@ -448,6 +505,7 @@ def main():
                 continue
             all_units += 1
             u["complex"] = complex_size(u, ctotal[ts[0]["key"]], cfirst, kidx, today)
+            u["complexTrades1y"] = c1y[ts[0]["key"]]
             hh = u["complex"]["households"]
             big_enough = hh is None or hh >= min_hh
             if not big_enough:
@@ -456,7 +514,7 @@ def main():
                   and u["trades2y"] >= f["min_trades_2y"] and u["trades1y"] >= f.get("min_trades_1y", 2) and big_enough)
             u["region"] = reg["name"]
             if ok:
-                u["score"], u["reason"], u["tags"], u["parts"], u["commute"] = score_unit(u, region, cfg, today)
+                u["score"], u["reason"], u["tags"], u["parts"], u["scoreDetail"] = score_unit(u, region, cfg, today)
                 candidates.append(u)
             (SITE_DATA / "units" / f"{u['id']}.json").write_text(json.dumps(u, ensure_ascii=False), encoding="utf-8")
 
@@ -479,7 +537,7 @@ def main():
 
     def light(u):
         keys = ["id", "name", "dong", "region", "lawd", "built", "area", "pyeong", "peak", "recent", "last",
-                "drop", "jratio", "jeonse", "score", "reason", "tags", "trades6m", "commute", "parts", "complex"]
+                "drop", "jratio", "jeonse", "score", "reason", "tags", "trades6m", "parts", "scoreDetail", "complex", "ath"]
         return {k: u.get(k) for k in keys}
 
     recommend = {
