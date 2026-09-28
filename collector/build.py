@@ -335,7 +335,7 @@ def score_unit(u, region, cfg, today):
     hall = c.get("hall")
     drop = u["drop"] if u["drop"] is not None else 0
 
-    tier = cfg.get("tier_by_region", {}).get(reg_cfg["name"])
+    tier = cfg.get("tier_by_dong", {}).get(u["dong"], cfg.get("tier_by_region", {}).get(reg_cfg["name"]))
     parts = {
         "price_drop": clamp(drop / 0.25),
         "tier": (1 - (tier - 1) * 0.2) if tier else 0.5,
@@ -355,7 +355,7 @@ def score_unit(u, region, cfg, today):
     lines = {
         "price_drop": f"{peak_txt}보다 {round(drop * 100)}% 싸요",
         "growth": f"{region['name']} 흐름이 '{region['status']}'",
-        "tier": f"{tier}급지 ({reg_cfg['name']})" if tier else "급지 미정",
+        "tier": f"{tier:g}급지" if tier else "급지 미정",
         "gangnam": f"강남까지 약 {gmin}분",
         "school": "학군 좋은 동네",
         "size": f"{hh:,}세대 대단지" if hh else "대단지",
@@ -375,7 +375,7 @@ def score_unit(u, region, cfg, today):
     elif u["peak"] and d < 0:
         tags.append("전고점 돌파")
     if tier:
-        tags.insert(0, f"{tier}급지")
+        tags.insert(0, f"{tier:g}급지")
     if hh and hh >= 1000:
         tags.append(f"대단지 {hh:,}세대")
     if hall == "계단식":
@@ -560,6 +560,10 @@ def main():
     (SITE_DATA / "recommend.json").write_text(json.dumps(recommend, ensure_ascii=False), encoding="utf-8")
     (SITE_DATA / "units.json").write_text(json.dumps([light(u) for u in ranked], ensure_ascii=False), encoding="utf-8")
     (SITE_DATA / "regions.json").write_text(json.dumps(list(regions.values()), ensure_ascii=False), encoding="utf-8")
+    idx = ROOT / "site" / "index.html"
+    ver = now.strftime("%Y%m%d%H%M")
+    html = re.sub(r'(app\.js|style\.css)(\?v=\d+)?"', lambda m: f'{m.group(1)}?v={ver}"', idx.read_text(encoding="utf-8"))
+    idx.write_text(html, encoding="utf-8")
     (SITE_DATA / "meta.json").write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
     if meta["hasRone"]:
         shutil.copy(rone_path, SITE_DATA / "rone.json")

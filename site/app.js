@@ -341,7 +341,7 @@
       <aside class="side side-w">
         ${u.parts ? `<div class="card"><div class="card-head"><h2>점수 내역</h2><span class="big" style="font-size:24px">${u.score}점</span></div>
           ${Object.keys(PARTS).filter((k) => rec.weights[k]).map((k) => { const v = u.parts[k] || 0; const got = Math.round(v * rec.weights[k]); return `<div data-tip="${esc(PARTS[k][1])}" style="display:flex;align-items:center;gap:10px;font-size:14px">
-            <span style="width:92px">${PARTS[k][0]}${k === 'tier' && u.scoreDetail && u.scoreDetail.tier ? ' (' + u.scoreDetail.tier + '급)' : ''}</span>
+            <span style="width:92px">${PARTS[k][0]}${k === 'tier' && u.scoreDetail && u.scoreDetail.tier ? ' ' + u.scoreDetail.tier + '급' : ''}</span>
             <div style="flex:1;height:8px;background:#E5E5EA;border-radius:4px;overflow:hidden"><div style="width:${v * 100}%;height:100%;background:#007AFF"></div></div>
             <span style="width:56px;text-align:right" class="muted">${got}/${rec.weights[k]}</span></div>`; }).join('')}
           <div class="small muted">${u.scoreDetail ? `강남 약 ${u.scoreDetail.gangnamMin}분${u.scoreDetail.walk ? ' (역까지 ' + esc(u.scoreDetail.walk) + ')' : ''} · 1년 거래 ${u.scoreDetail.tradesPerYear}건${u.scoreDetail.turnover != null ? ' (세대의 ' + (u.scoreDetail.turnover * 100).toFixed(1) + '%)' : ''}${u.scoreDetail.hall ? ' · ' + esc(u.scoreDetail.hall) : ''}` : ''}. 막대에 마우스를 올리면 기준이 보여요.</div></div>` : ''}
