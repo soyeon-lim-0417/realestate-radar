@@ -19,12 +19,9 @@
 영등포구 rent 202609: 434건
 완료 · API 호출 18회 · 오류 0건
 == python collector/fetch_kapt.py
-마포구 단지 목록 142개 (AptListService4/getSigunguAptList4)
-성동구 단지 목록 132개 (AptListService4/getSigunguAptList4)
-영등포구 단지 목록 180개 (AptListService4/getSigunguAptList4)
-K-apt 단지 454개 저장
+K-apt 정보가 최근 것이라 건너뜀
 == python collector/fetch_rone.py
 RONE_KEY 없음 · 부동산원 지수는 건너뜀
 == python collector/build.py
-소형 단지로 빠진 곳 304개 · K-apt 사용
-단지·평형 503개 중 후보 138개 · 추천 10개 · 실데이터
+소형 단지로 빠진 곳 305개 · K-apt 사용
+단지·평형 503개 중 후보 133개 · 추천 10개 · 실데이터
