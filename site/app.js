@@ -24,6 +24,11 @@
     set(k, v) { try { localStorage.setItem('radar:' + k, JSON.stringify(v)); } catch (e) { /* 저장 불가 환경 */ } },
   };
   const favs = () => store.get('favs', {});
+  // 돈 계산기에서 바꾼 조건 (모든 화면이 같이 씀)
+  const calcPrefs = (rules) => Object.assign({ first: false, rate: rules.defaults.rate, interior: rules.defaults.interior, moving: rules.defaults.moving, loanMode: 'max', loanAmount: null }, store.get('calc', {}));
+  const saveCalcPrefs = (p) => store.set('calc', { first: p.first, rate: p.rate, interior: p.interior, moving: p.moving, loanMode: p.loanMode, loanAmount: p.loanAmount });
+  const calcWithPrefs = (price, rules) => { const p = calcPrefs(rules); return { p, r: calc({ price, first: p.first, rate: p.rate, interior: p.interior, moving: p.moving, loan: p.loanMode === 'max' ? null : p.loanAmount }, rules) }; };
+  const ym2 = (d) => d.slice(2, 4) + '.' + d.slice(5, 7);
 
   // ---------- 툴팁 ----------
   document.addEventListener('mousemove', (e) => {
@@ -187,12 +192,12 @@
     <section class="head">
       <div>${sampleNote(meta)}
         <h1 class="h1">오늘의 추천 ${rec.top.length}</h1>
-        <p class="sub">내 조건에 맞는 단지·평형 ${rec.candidateCount}곳 중 지금 사기 좋은 순서로 골랐어요.${rec.smallExcluded ? ` (${rec.filters.min_households}세대 미만 소형 단지 ${rec.smallExcluded}곳은 뺐어요)` : ''}</p>
+        <p class="sub">내 조건에 맞는 단지·평형 ${rec.candidateCount}곳 중 지금 사기 좋은 순서로 골랐어요.${rec.smallExcluded ? ` (${rec.filters.min_households}세대 미만 소형 단지의 평형 ${rec.smallExcluded}곳은 뺐어요)` : ''}</p>
       </div>
       <div class="chips">
         <span class="chip on" style="display:inline-flex;align-items:center">${esc(rec.regions.join(' · '))}</span>
         <span class="chip" style="display:inline-flex;align-items:center">전용 ${rec.filters.area_min_m2}~${rec.filters.area_max_m2}㎡</span>
-        <span class="chip" style="display:inline-flex;align-items:center">${won(rec.filters.max_price_manwon)} 이하</span>
+        <span class="chip" style="display:inline-flex;align-items:center">${won(rec.filters.max_price_manwon)} 미만</span>
         <a class="chip" href="#/setting" style="display:inline-flex;align-items:center;border-style:dashed;color:#6C6C70">조건 바꾸기</a>
       </div>
     </section>
@@ -217,7 +222,7 @@
           <div class="rank">${u.rank}</div>
           <div><div class="name">${esc(u.name)}${u.isNew ? '<span class="new">NEW</span>' : ''}</div>
             <div class="small muted">${esc(u.region)} ${esc(u.dong)} · ${u.pyeong}평 · ${u.built || '?'}년${hhText(u.complex) ? ' · ' + hhText(u.complex) : ''}</div></div>
-          <div><div style="font-weight:600;font-size:16px">${won(u.recent)}</div>
+          <div><div style="font-weight:600;font-size:16px">${won(u.last.price)} <span class="small muted" style="font-weight:400">${ym2(u.last.date)}</span></div>
             <div class="small muted">최고 ${won(u.peak && u.peak.price)}</div></div>
           <div>${badge(u.drop)}</div>
           <div style="display:flex;flex-direction:column;gap:8px;min-width:0"><div style="font-size:14px">${esc(u.reason)}</div>
@@ -252,7 +257,7 @@
     const top = rec.top.find((t) => t.id === u.id);
     const region = regions.find((g) => g.lawd === u.lawd);
     const isFav = !!favs()[u.id];
-    const money = calc({ price: u.recent || u.last.price, first: false, rate: rules.defaults.rate, interior: rules.defaults.interior, moving: rules.defaults.moving }, rules);
+    const { p: prefs, r: money } = calcWithPrefs(u.last.price, rules);
     const age = new Date().getFullYear() - (u.built || new Date().getFullYear());
 
     // 차트: 첫 거래 달부터 지난달까지
@@ -305,9 +310,9 @@
         <a class="btn primary" href="#/calc/${encodeURIComponent(u.id)}">돈 계산해 보기</a></div>
     </section>
     <section class="grid g5 tiles">
-      <div class="tile"><div class="small muted">최근 거래가</div><div class="v">${won(u.recent)}</div><div class="small muted">${esc(u.recentBasis || '')}</div></div>
-      <div class="tile"><div class="small muted">지금 나온 매물 최저가</div><div class="soon">2단계에서 연결</div><div class="small muted">네이버·KB 호가</div></div>
-      <div class="tile"><div class="small muted">KB시세</div><div class="soon">2단계에서 연결</div></div>
+      <div class="tile"><div class="small muted">가장 최근 거래</div><div class="v">${won(u.last.price)}</div><div class="small muted">${dateLabel(u.last.date)} · ${u.last.floor}층</div></div>
+      <div class="tile"><div class="small muted">비교 기준 가격</div><div class="v">${won(u.recent)}</div><div class="small muted">${esc(u.recentBasis || '')} (최근 거래·3건 중간값 중 높은 값)</div></div>
+      <div class="tile"><div class="small muted">호가 · KB시세</div><div class="soon">2단계에서 연결</div><div class="small muted">네이버·KB</div></div>
       <div class="tile"><div class="small muted">전고점 (${u.peak ? dateLabel(u.peak.date).slice(0, 7) : '–'})</div><div class="v">${won(pk)}</div><div class="small muted">${u.peak ? u.peak.floor + '층 거래' : ''}</div></div>
       <div class="tile blue"><div class="small muted">전고점보다</div><div class="v">${u.drop == null ? '–' : u.drop >= 0 ? Math.round(u.drop * 100) + '% 낮음' : Math.round(-u.drop * 100) + '% 높음'}</div></div>
     </section>
@@ -328,14 +333,15 @@
           ${cons.length ? `<div class="small" style="background:#F2F2F7;border-radius:10px;padding:12px 14px;color:#3C3C43">아쉬운 점: ${cons.map(esc).join(' ')}</div>` : ''}
         </div>
         <div class="card blue"><h2>내 돈은 얼마나 필요할까?</h2>
-          <div class="small muted">${won(u.recent || u.last.price)}에 사고, 대출을 최대(${won(money.loan)})로 받는다면</div>
+          <div class="small muted">${won(u.last.price)}에 사고, 대출 ${won(money.loan)}${prefs.loanMode === 'max' ? '(최대)' : ''} · ${prefs.first ? '생애 첫 집' : '첫 집 아님'} · 금리 ${prefs.rate.toFixed(1)}%</div>
           <div class="big" style="font-size:32px">약 ${wonMan(Math.round(money.total / 100) * 100)} 원</div>
           <div class="small" style="display:flex;flex-direction:column;gap:6px;color:#D6E9FF">
             <div class="kv"><span>집값 − 대출</span><span>${wonMan(money.down)}</span></div>
             <div class="kv"><span>취득세 등</span><span>${wonMan(money.tax)}</span></div>
             <div class="kv"><span>중개 수수료</span><span>${wonMan(money.broker)}</span></div>
             <div class="kv"><span>등기·법무사·채권·인지세</span><span>${wonMan(money.bond + money.legal + money.stamp)}</span></div>
-            <div class="kv"><span>이사·인테리어</span><span>${wonMan(rules.defaults.moving + rules.defaults.interior)}</span></div></div>
+            <div class="kv"><span>이사·인테리어</span><span>${wonMan(prefs.moving + prefs.interior)}</span></div>
+            <div class="kv"><span>매달 갚을 돈</span><span>약 ${wonMan(Math.round(money.monthly))}</span></div></div>
           <a class="btn white" href="#/calc/${encodeURIComponent(u.id)}">계산기에서 바꿔보기</a></div>
       </aside>
     </section>
@@ -390,7 +396,9 @@
   async function calcPage(id) {
     const [rules, units] = await Promise.all([load('rules.json'), load('units.json')]);
     const u = units.find((x) => x.id === id) || units[0];
-    const st = { price: u ? (u.recent || 100000) : 100000, loan: null, rate: rules.defaults.rate, interior: rules.defaults.interior, moving: rules.defaults.moving, first: false };
+    const pr = calcPrefs(rules);
+    const st = { price: u ? u.last.price : 100000, loan: pr.loanMode === 'max' ? null : pr.loanAmount, rate: pr.rate, interior: pr.interior, moving: pr.moving, first: pr.first, loanMode: pr.loanMode, loanAmount: pr.loanAmount };
+    const persist = () => saveCalcPrefs(st);
     $app.innerHTML = `
     <section class="head"><div>
       ${u ? `<a class="back" href="#/unit/${encodeURIComponent(u.id)}">← ${esc(u.name)} 상세로</a>` : ''}
@@ -415,6 +423,7 @@
           <input type="range" id="interior" min="0" max="10000" step="100"></label>
         <label class="field"><div class="field-top"><span style="font-weight:600">이사비</span><b id="v-moving"></b></div>
           <input type="range" id="moving" min="50" max="600" step="10"></label>
+        <div class="small muted">바꾼 조건(첫 집 여부·대출·금리·인테리어·이사비)은 저장돼서 단지 상세의 '내 돈' 계산에도 똑같이 쓰여요. <button class="btn" id="reset" style="height:32px;padding:0 10px;font-size:13px;margin-top:6px">처음 값으로</button></div>
         <div class="small muted">규칙: ${esc(rules.asOf)}. 소득에 따른 대출 한도(DSR)는 반영하지 않았어요.</div>
       </div>
       <div class="grow" style="display:flex;flex-direction:column;gap:16px" id="result"></div>
@@ -429,7 +438,7 @@
       $('loan').max = Math.max(500, r.loanMax); $('loan').value = r.loan;
       $('v-price').textContent = won(st.price); $('v-loan').textContent = won(r.loan); $('v-rate').textContent = st.rate.toFixed(1) + '%';
       $('v-interior').textContent = wonMan(st.interior); $('v-moving').textContent = wonMan(st.moving);
-      $('price-note').textContent = u ? `${u.name} 최근 거래가 ${won(u.recent)} · 전고점 ${won(u.peak && u.peak.price)}` : '';
+      $('price-note').textContent = u ? `${u.name} 가장 최근 거래 ${won(u.last.price)} (${dateLabel(u.last.date)}) · 전고점 ${won(u.peak && u.peak.price)}` : '';
       $('loan-note').textContent = `이 가격이면 최대 ${won(r.loanMax)}까지 (집값의 ${pct(st.first ? rules.ltv.firstHome : rules.ltv.default)}, 가격대별 한도 중 작은 쪽)`;
       $('first-y').className = 'btn' + (st.first ? ' on' : ''); $('first-n').className = 'btn' + (!st.first ? ' on' : '');
       const downPct = Math.max(0, Math.min(100, (r.down / r.total) * 100));
@@ -452,9 +461,16 @@
           <div class="kv" style="padding-top:8px"><b>합계</b><b style="font-size:20px">${wonMan(r.cost)}</b></div></div>
         <div class="card dashed small" style="color:#3C3C43">잊기 쉬운 것: 잔금 날짜와 지금 집 보증금 돌려받는 날짜가 어긋나면 잠깐 돈이 더 필요해요. 대출 서류 인지세 절반도 내 몫이에요.</div>`;
     }
-    inputs.forEach((k) => $(k).addEventListener('input', (e) => { st[k] = +e.target.value; if (k === 'price') st.loan = null; render(); }));
-    $('first-y').onclick = () => { st.first = true; st.loan = null; render(); };
-    $('first-n').onclick = () => { st.first = false; st.loan = null; render(); };
+    inputs.forEach((k) => $(k).addEventListener('input', (e) => {
+      st[k] = +e.target.value;
+      if (k === 'loan') { const mx = calc(Object.assign({}, st, { loan: null }), rules).loanMax; st.loanMode = st.loan >= mx - 250 ? 'max' : 'amount'; st.loanAmount = st.loan; if (st.loanMode === 'max') st.loan = null; }
+      if (k === 'price' && st.loanMode === 'max') st.loan = null;
+      if (k !== 'price') persist();
+      render();
+    }));
+    $('first-y').onclick = () => { st.first = true; if (st.loanMode === 'max') st.loan = null; persist(); render(); };
+    $('first-n').onclick = () => { st.first = false; if (st.loanMode === 'max') st.loan = null; persist(); render(); };
+    $('reset').onclick = () => { store.set('calc', {}); calcPage(id); };
     $('pick').onchange = (e) => { location.hash = '#/calc/' + encodeURIComponent(e.target.value); };
     render();
   }
@@ -551,7 +567,7 @@
     <section class="head"><div><h1 class="h1">내 조건</h1><p class="sub">조건은 저장소의 <b>config.json</b> 파일에서 바꿔요. 바꾸면 다음 날 아침 추천에 반영돼요.</p></div></section>
     <section class="grid g2">
       <div class="card"><h2>찾는 집</h2>
-        ${[['지역', rec.regions.join(', ')], ['전용면적', `${f.area_min_m2}~${f.area_max_m2}㎡`], ['예산 (집값)', won(f.max_price_manwon) + ' 이하'], ['단지 규모', (f.min_households || 0) + '세대 이상'], ['최소 거래 수', `최근 2년 ${f.min_trades_2y}건 이상`], ['가격 계산에서 빼는 거래', `${f.exclude_low_floor_upto}층 이하, ${f.exclude_direct_deal ? '직거래, ' : ''}취소된 거래`]]
+        ${[['지역', rec.regions.join(', ')], ['전용면적', `${f.area_min_m2}~${f.area_max_m2}㎡`], ['예산 (집값)', won(f.max_price_manwon) + ' 미만'], ['단지 규모', (f.min_households || 0) + '세대 이상'], ['최소 거래 수', `최근 2년 ${f.min_trades_2y}건 이상`], ['가격 계산에서 빼는 거래', `${f.exclude_low_floor_upto}층 이하, ${f.exclude_direct_deal ? '직거래, ' : ''}취소된 거래`]]
           .map(([k, v]) => `<div class="kv" style="padding:10px 0;border-bottom:1px solid #E5E5EA"><span class="muted">${k}</span><b>${esc(v)}</b></div>`).join('')}</div>
       <div class="card"><h2>점수 비중 (합계 100)</h2>
         ${Object.keys(names).map((k) => `<div style="display:flex;align-items:center;gap:12px"><span style="width:120px" class="muted">${names[k]}</span>

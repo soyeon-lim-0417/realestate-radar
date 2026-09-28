@@ -67,15 +67,20 @@ def main():
     if not key:
         print("DATA_GO_KR_KEY 없음 · K-apt 건너뜀")
         return
-    if OUT.exists() and datetime.fromtimestamp(OUT.stat().st_mtime) > datetime.now() - timedelta(days=30) \
-            and json.loads(OUT.read_text(encoding="utf-8")):
+    cfg = json.loads((ROOT / "config.json").read_text(encoding="utf-8"))
+    data = json.loads(OUT.read_text(encoding="utf-8")) if OUT.exists() else {}
+    meta = data.pop("__fetched__", None)
+    if meta is None:  # 예전 형식: 들어 있는 구는 오늘 받은 걸로 봄
+        meta = {v.get("lawd"): datetime.now().strftime("%Y-%m-%d") for v in data.values()}
+    cutoff = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+    todo = [r for r in cfg["regions"] if meta.get(r["lawd_cd"], "0000") < cutoff]
+    if not todo:
         print("K-apt 정보가 최근 것이라 건너뜀")
         return
-    cfg = json.loads((ROOT / "config.json").read_text(encoding="utf-8"))
-    old = json.loads(OUT.read_text(encoding="utf-8")) if OUT.exists() else {}
-    out, fails = {}, 0
-    try:
-        for reg in cfg["regions"]:
+    fails = 0
+    for reg in todo:
+        new = {}
+        try:
             page, rows = 1, []
             while True:
                 api, (its, total) = first_working(LIST_APIS, {"serviceKey": key, "sigunguCode": reg["lawd_cd"], "numOfRows": 1000, "pageNo": page})
@@ -101,18 +106,18 @@ def main():
                 except Exception as e:
                     info["error"] = str(e)[:80]
                     fails += 1
-                    if fails >= 3 and len(out) < 3:
+                    if fails >= 3 and len(new) < 3:
                         raise RuntimeError(f"기본정보 API 사용 불가: {e}")
-                out[code] = info
+                new[code] = info
                 time.sleep(0.05)
-    except Exception as e:
-        print(f"K-apt API 사용 불가 · 세대수는 거래량으로 추정해요 ({e})")
-        if old:
-            return
-    if out:
-        OUT.write_text(json.dumps(out, ensure_ascii=False), encoding="utf-8")
-        print(f"K-apt 단지 {len(out)}개 저장")
-
+        except Exception as e:
+            print(f"{reg['name']} K-apt 사용 불가 · 세대수는 거래량으로 추정해요 ({e})")
+            continue
+        data = {k: v for k, v in data.items() if v.get("lawd") != reg["lawd_cd"]}
+        data.update(new)
+        meta[reg["lawd_cd"]] = datetime.now().strftime("%Y-%m-%d")
+        OUT.write_text(json.dumps(dict(data, __fetched__=meta), ensure_ascii=False), encoding="utf-8")
+        print(f"{reg['name']} K-apt 단지 {len(new)}개 저장")
 
 if __name__ == "__main__":
     main()

@@ -237,10 +237,15 @@ def analyze_unit(ts, rents_by_match, cfg, today):
     cut24 = (today - timedelta(days=730)).isoformat()
     recent6 = [t["price"] for t in valid if t["date"] >= cut6]
     last = valid[-1]
-    if recent6:
-        recent, basis = median(recent6), f"최근 6개월 거래 {len(recent6)}건의 중간값"
-    elif last["date"] >= cut12:
-        recent, basis = last["price"], "최근 1년 안 마지막 거래"
+    # 기준 가격: 1년 안의 가장 최근 3건 중간값 (한 건만 튀는 급매·특이 거래에 덜 흔들리게)
+    # 비교 기준 가격 = '가장 최근 거래'와 '최근 3건 중간값' 중 높은 값
+    #  - 급매 한 건 때문에 '많이 빠졌다'고 과장하지 않고
+    #  - 값이 이미 회복됐는데 옛 거래 때문에 싸 보이지도 않게 (보수적으로)
+    last3 = [t["price"] for t in valid if t["date"] >= cut12][-3:]
+    if last3:
+        m3 = median(last3)
+        recent = max(m3, last3[-1])
+        basis = "가장 최근 거래" if recent == last3[-1] else f"최근 {len(last3)}건 중간값"
     else:
         recent, basis = None, None
 
@@ -338,6 +343,8 @@ def load_kapt():
         return {}
     idx = defaultdict(list)  # (구코드, 동이름) → 단지들
     for code, k in json.loads(p.read_text(encoding="utf-8")).items():
+        if code.startswith("__"):
+            continue
         addr = k.get("kaptAddr") or ""
         m = re.search(r"([가-힣0-9]+동[0-9]*가?)\s+([0-9]+)(?:-([0-9]+))?", addr)
         dong = m.group(1) if m else ""
@@ -418,7 +425,7 @@ def main():
                 ctotal[t["key"]] += 1
         groups = defaultdict(list)
         for t in trades:
-            if f["area_min_m2"] <= t["area"] <= f["area_max_m2"]:
+            if f["area_min_m2"] <= t["bucket"] <= f["area_max_m2"]:  # 84.97㎡ 도 84㎡ 로 봐요
                 groups[(t["key"], t["bucket"])].append(t)
         for ts in groups.values():
             u = analyze_unit(ts, rents_by_match, cfg, today)
@@ -430,7 +437,7 @@ def main():
             big_enough = hh is None or hh >= min_hh
             if not big_enough:
                 small_out += 1
-            ok = (u["recent"] and u["peak"] and u["recent"] <= f["max_price_manwon"]
+            ok = (u["recent"] and u["peak"] and u["last"]["price"] < f["max_price_manwon"] and u["recent"] < f["max_price_manwon"]
                   and u["trades2y"] >= f["min_trades_2y"] and big_enough)
             u["region"] = reg["name"]
             if ok:

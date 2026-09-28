@@ -4,7 +4,10 @@
   "regions": [
     { "name": "마포구", "lawd_cd": "11440", "commute_min": 25 },
     { "name": "성동구", "lawd_cd": "11200", "commute_min": 30 },
-    { "name": "영등포구", "lawd_cd": "11560", "commute_min": 20 }
+    { "name": "영등포구", "lawd_cd": "11560", "commute_min": 20 },
+    { "name": "강서구", "lawd_cd": "11500", "commute_min": 30 },
+    { "name": "동작구", "lawd_cd": "11590", "commute_min": 30 },
+    { "name": "강동구", "lawd_cd": "11740", "commute_min": 30 }
   ],
 
   "commute_by_dong": {
@@ -17,8 +20,9 @@
 
   "filters": {
     "area_min_m2": 49,
-    "area_max_m2": 70,
-    "max_price_manwon": 180000,
+    "area_max_m2": 84,
+    "max_price_manwon": 150000,
+    "_예산설명": "max_price_manwon 미만(보다 싼 곳)만 추천해요. 15억 = 150000",
     "min_households": 300,
     "min_trades_2y": 3,
     "exclude_low_floor_upto": 3,
