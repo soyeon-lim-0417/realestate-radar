@@ -187,9 +187,15 @@ def region_report(name, trades, rents, last_ym):
         {"id": "room", "title": "너무 많이 오르진 않았나?", "ok": from_peak is not None and from_peak <= -0.05,
          "detail": (f"동네 전체가 고점보다 {abs(from_peak) * 100:.0f}% 낮아요" if from_peak is not None and from_peak < 0 else "동네 전체가 고점 근처예요")},
     ]
-    n_ok = sum(c["ok"] for c in checks)
-    status = "회복 신호" if n_ok >= 3 else ("지켜보기" if n_ok == 2 else "약세")
-    tone = "good" if n_ok >= 3 else ("watch" if n_ok == 2 else "weak")
+    # 전세 자료가 없으면 그 항목은 빼고 판단 (4개 중 3개 = 75% 기준 유지)
+    if j_chg is None:
+        checks[2]["na"] = True
+        checks[2]["detail"] = "전세 자료가 아직 없어요 (전월세 API 신청 후 자동 반영)"
+    avail = [c for c in checks if not c.get("na")]
+    n_ok = sum(c["ok"] for c in avail)
+    frac = n_ok / len(avail) if avail else 0
+    status = "회복 신호" if frac >= 0.75 else ("지켜보기" if frac >= 0.5 else "약세")
+    tone = "good" if frac >= 0.75 else ("watch" if frac >= 0.5 else "weak")
     summary = {
         "good": "떨어지던 값이 멈추고 거래가 살아나는 중이에요.",
         "watch": "좋은 신호와 나쁜 신호가 섞여 있어요. 조금 더 지켜봐요.",
@@ -197,7 +203,7 @@ def region_report(name, trades, rents, last_ym):
     }[tone]
     last_j = next((s["jratio"] for s in reversed(series) if s["jratio"]), None)
     return {
-        "name": name, "status": status, "tone": tone, "okCount": n_ok, "summary": summary,
+        "name": name, "status": status, "tone": tone, "okCount": n_ok, "checkCount": len(avail), "summary": summary,
         "checks": checks, "series": series,
         "peak": {"ym": peak_m, "ppm": round(peak_v) if peak_v else None},
         "now": {"ppm": round(p_now) if p_now else None, "fromPeak": from_peak, "jratio": last_j,
@@ -279,7 +285,7 @@ def score_unit(u, region, cfg, today):
     age = today.year - (u["built"] or today.year)
     parts = {
         "price_drop": clamp((u["drop"] or 0) / 0.25),
-        "growth": clamp(0.7 * region["okCount"] / 4 + 0.3 * clamp(((u["jratio"] or 0.45) - 0.4) / 0.3)),
+        "growth": clamp(0.7 * region["okCount"] / max(1, region["checkCount"]) + 0.3 * clamp(((u["jratio"] or 0.45) - 0.4) / 0.3)),
         "commute": clamp((60 - commute) / 45),
         "school": clamp((school - 1) / 4),
         "condition": clamp(1 - age / 40),

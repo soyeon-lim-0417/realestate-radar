@@ -151,7 +151,9 @@
     const cls = d >= 20 ? 'b20' : d >= 10 ? 'b10' : 'b0';
     return `<span class="badge ${cls}">${drop > 0 ? '-' : '+'}${Math.abs(Math.round(drop * 100))}%</span>`;
   };
-  const checkIcon = (ok) => ok
+  const checkIcon = (ok, na) => na
+    ? '<svg class="ico" viewBox="0 0 24 24" aria-label="자료 없음"><circle cx="12" cy="12" r="10" fill="none" stroke="#C7C7CC" stroke-width="2" stroke-dasharray="3 3"/></svg>'
+    : ok
     ? '<svg class="ico" viewBox="0 0 24 24" aria-label="충족"><circle cx="12" cy="12" r="11" fill="#34C759"/><path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
     : '<svg class="ico" viewBox="0 0 24 24" aria-label="아직"><circle cx="12" cy="12" r="10" fill="none" stroke="#C7C7CC" stroke-width="2"/></svg>';
   const sampleNote = (meta) => meta.sample
@@ -350,7 +352,7 @@
       <div class="sec-title"><h2>이 동네 흐름</h2><a class="small" href="#/region/${region.lawd}">${esc(region.name)} 리포트 전체 보기</a></div>
       <div class="grid g3">
         <div class="card"><div style="display:flex;gap:8px;align-items:center">${dot(region.tone)}<h3>시세 흐름 · ${esc(region.status)}</h3></div><div class="small" style="color:#3C3C43">${esc(region.summary)}</div></div>
-        ${region.checks.filter((c) => c.id !== 'room').slice(0, 2).map((c) => `<div class="card"><div style="display:flex;gap:8px;align-items:center">${checkIcon(c.ok)}<h3>${esc(c.title)}</h3></div><div class="small" style="color:#3C3C43">${esc(c.detail)}</div></div>`).join('')}
+        ${region.checks.filter((c) => c.id !== 'room').slice(0, 2).map((c) => `<div class="card"><div style="display:flex;gap:8px;align-items:center">${checkIcon(c.ok, c.na)}<h3>${esc(c.title)}</h3></div><div class="small" style="color:#3C3C43">${esc(c.detail)}</div></div>`).join('')}
       </div></section>` : ''}
     <section class="row">
       <div class="grow card"><h2>최근 실거래 (${u.area}㎡)</h2>
@@ -476,7 +478,7 @@
     <section class="card blue" style="padding:32px 36px;flex-direction:row;gap:40px;align-items:center;flex-wrap:wrap">
       <div style="width:340px;display:flex;flex-direction:column;gap:10px"><div class="muted">한 줄 결론</div>
         <div style="font-size:32px;font-weight:800;letter-spacing:-1px">${esc(g.status)}</div>
-        <div class="small muted">${esc(g.summary)} (신호 4개 중 ${g.okCount}개)</div></div>
+        <div class="small muted">${esc(g.summary)} (신호 ${g.checkCount || 4}개 중 ${g.okCount}개)</div></div>
       <div class="grid g3" style="flex:1;min-width:300px">
         ${[['평당 가격 (최근 3개월)', perPyeong(n.ppm), n.fromPeak != null ? `동네 고점보다 ${Math.abs(Math.round(n.fromPeak * 100))}% ${n.fromPeak < 0 ? '낮아요' : '높아요'}` : ''],
            ['전세가율', n.jratio ? pct(n.jratio) : '–', '집값 대비 전세 보증금'],
@@ -504,8 +506,8 @@
             ${(() => { const r = roneSale.slice(-52); return chart({ xs: r.map((p) => p.t), series: [{ vals: r.map((p) => p.v), color: '#007AFF', width: 2.5 }], yFmt: (v) => v.toFixed(1), tip: (i) => `${esc(r[i].t)}<br>지수 <b>${r[i].v.toFixed(2)}</b>`, h: 220, maxLabels: 6, label: '주간 매매가격지수' }); })()}</div>` : ''}
         </div>
         <aside class="side card" style="gap:16px"><h3>돌아서는 신호 체크</h3>
-          ${g.checks.map((c) => `<div class="check">${checkIcon(c.ok)}<div class="small"><b>${esc(c.title)}</b><br><span class="muted">${esc(c.detail)}</span></div></div>`).join('')}
-          <div class="small" style="background:#F2F2F7;border-radius:10px;padding:12px 14px">4개 중 ${g.okCount}개 충족 → <b class="accent">${esc(g.status)}</b><br><span class="muted">3개 이상: 회복 신호 · 2개: 지켜보기 · 1개 이하: 약세</span></div>
+          ${g.checks.map((c) => `<div class="check">${checkIcon(c.ok, c.na)}<div class="small"><b>${esc(c.title)}</b><br><span class="muted">${esc(c.detail)}</span></div></div>`).join('')}
+          <div class="small" style="background:#F2F2F7;border-radius:10px;padding:12px 14px">${g.checkCount || 4}개 중 ${g.okCount}개 충족 → <b class="accent">${esc(g.status)}</b><br><span class="muted">4개 중 3개 이상(75%): 회복 신호 · 절반: 지켜보기 · 그 아래: 약세</span></div>
         </aside>
       </div>
     </section>
