@@ -227,15 +227,15 @@ def analyze_unit(ts, rents_by_match, cfg, today):
     if not valid:
         return None
 
-    # 튀는 거래 걸러내기: 앞뒤 1년 거래(2건 이상) 중간값보다 25% 넘게 싸거나 비싸면 '이상치'
-    #  (가족 간 거래, 지분 거래 등 시세와 다른 거래)
+    # 튀는 거래 걸러내기: 앞뒤 1년 거래(2건 이상) 중간값보다 25% 넘게 '싼' 거래만 '이상치'
+    #  (가족 간 거래, 지분 거래 등). 비싼 거래(신고가)는 시장이 오른 것일 수 있어 그대로 둬요.
     outliers = set()
     for i, t in enumerate(valid):
         d = datetime.fromisoformat(t["date"])
         nb = [u["price"] for j, u in enumerate(valid) if j != i and abs((datetime.fromisoformat(u["date"]) - d).days) <= 365]
         if len(nb) >= 2:
             m = median(nb)
-            if t["price"] < m * 0.75 or t["price"] > m * 1.25:
+            if t["price"] < m * 0.75:
                 outliers.add(id(t))
         elif i > 0 and t["price"] < valid[i - 1]["price"] * 0.75:
             # 주변 거래가 적을 땐 바로 앞 거래와 비교: 25% 넘게 싸면 특이 거래(지분·특수관계 등)로 봄
@@ -244,7 +244,7 @@ def analyze_unit(ts, rents_by_match, cfg, today):
     if not valid:
         return None
 
-    # 전고점: 앞뒤 6개월 거래 중간값보다 20% 넘게 튀는 거래는 이상치로 보고 제외
+    # 전고점: 비싼 거래도 그대로 인정 (등기 안 된 거래·취소·직거래·저층은 이미 빠져 있어요)
     def neighborhood_median(t):
         d = datetime.fromisoformat(t["date"])
         xs = [u["price"] for u in valid if abs((datetime.fromisoformat(u["date"]) - d).days) <= 183]
@@ -254,9 +254,6 @@ def analyze_unit(ts, rents_by_match, cfg, today):
     pw = cfg.get("peak_window", {"from": "2020-01-01", "to": "2022-12-31"})
     peak, ath = None, None
     for t in valid:
-        nm = neighborhood_median(t)
-        if not nm or t["price"] > nm * 1.2:
-            continue
         if ath is None or t["price"] > ath["price"]:
             ath = t
         if pw["from"] <= t["date"] <= pw["to"] and (peak is None or t["price"] > peak["price"]):
