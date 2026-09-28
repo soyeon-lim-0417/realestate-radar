@@ -335,8 +335,10 @@ def score_unit(u, region, cfg, today):
     hall = c.get("hall")
     drop = u["drop"] if u["drop"] is not None else 0
 
+    tier = cfg.get("tier_by_region", {}).get(reg_cfg["name"])
     parts = {
         "price_drop": clamp(drop / 0.25),
+        "tier": (1 - (tier - 1) * 0.2) if tier else 0.5,
         "growth": clamp(0.7 * region["okCount"] / max(1, region["checkCount"]) + 0.3 * clamp(((u["jratio"] or 0.45) - 0.4) / 0.3)),
         "gangnam": clamp((70 - gmin) / 45),
         "school": clamp((school - 1) / 4),
@@ -353,6 +355,7 @@ def score_unit(u, region, cfg, today):
     lines = {
         "price_drop": f"{peak_txt}보다 {round(drop * 100)}% 싸요",
         "growth": f"{region['name']} 흐름이 '{region['status']}'",
+        "tier": f"{tier}급지 ({reg_cfg['name']})" if tier else "급지 미정",
         "gangnam": f"강남까지 약 {gmin}분",
         "school": "학군 좋은 동네",
         "size": f"{hh:,}세대 대단지" if hh else "대단지",
@@ -371,6 +374,8 @@ def score_unit(u, region, cfg, today):
         tags.append("전고점 10%↓")
     elif u["peak"] and d < 0:
         tags.append("전고점 돌파")
+    if tier:
+        tags.insert(0, f"{tier}급지")
     if hh and hh >= 1000:
         tags.append(f"대단지 {hh:,}세대")
     if hall == "계단식":
@@ -387,7 +392,7 @@ def score_unit(u, region, cfg, today):
         tags.append("신축급")
     elif age >= 30:
         tags.append("준공 30년+ (재건축 연한)")
-    detail = {"gangnamMin": gmin, "walk": c.get("walk"), "school": school, "turnover": round(turnover, 3) if turnover is not None else None,
+    detail = {"tier": tier, "gangnamMin": gmin, "walk": c.get("walk"), "school": school, "turnover": round(turnover, 3) if turnover is not None else None,
               "tradesPerYear": per_year, "hall": hall, "age": age}
     return score, reason, tags, {k: round(v, 2) for k, v in parts.items()}, detail
 
