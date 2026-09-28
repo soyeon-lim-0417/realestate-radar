@@ -53,13 +53,13 @@ def items_of(body: bytes):
 
 
 def first_working(paths, params):
-    last = None
+    errs = []
     for p in paths:
         try:
             return p, items_of(call(BASE + p, dict(params)))
         except Exception as e:
-            last = e
-    raise RuntimeError(last)
+            errs.append(f"{p.split('/')[0]} → {e}")
+    raise RuntimeError(" | ".join(errs))
 
 
 def main():

@@ -9,6 +9,7 @@ import json
 import os
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -47,6 +48,12 @@ def call(url: str, params: dict, retries: int = 3) -> bytes:
         try:
             with urllib.request.urlopen(req, timeout=30) as r:
                 return r.read()
+        except urllib.error.HTTPError as e:  # 400/403 등은 다시 해도 같아서 바로 이유를 알려줌
+            body = e.read()[:300].decode("utf-8", "replace")
+            if e.code in (400, 401, 403, 404):
+                raise RuntimeError(f"HTTP {e.code}: {body}")
+            last = RuntimeError(f"HTTP {e.code}: {body}")
+            time.sleep(2 * (i + 1))
         except Exception as e:  # 네트워크 일시 오류는 잠깐 쉬고 다시
             last = e
             time.sleep(2 * (i + 1))
