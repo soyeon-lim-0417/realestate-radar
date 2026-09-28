@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: "50 20 * * *"   # 매일 한국시간 오전 5시 50분
   workflow_dispatch: {}      # Actions 탭에서 '지금 실행'도 가능
+  push:                      # 코드나 설정(config.json)을 바꿔 올리면 바로 실행
+    branches: [main]
+    paths-ignore:
+      - "data/**"
+      - "site/data/**"
+      - "README.md"
 
 permissions:
   contents: write
