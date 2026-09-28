@@ -89,5 +89,5 @@ K-apt 정보가 최근 것이라 건너뜀
 == python collector/fetch_rone.py
 RONE_KEY 없음 · 부동산원 지수는 건너뜀
 == python collector/build.py
-소형 단지로 빠진 곳 2478개 · K-apt 사용
-단지·평형 3327개 중 후보 285개 · 추천 10개 · 실데이터
+소형 단지로 빠진 곳 2479개 · K-apt 사용
+단지·평형 3328개 중 후보 295개 · 추천 10개 · 실데이터
