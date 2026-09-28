@@ -144,6 +144,10 @@
   }
 
   // ---------- 공통 조각 ----------
+  const hhText = (c) => {
+    if (!c || !c.households) return '';
+    return (c.source === 'kapt' ? '' : '약 ') + c.households.toLocaleString('ko-KR') + '세대';
+  };
   const dot = (tone) => `<span class="dot ${tone}" aria-hidden="true"></span>`;
   const badge = (drop) => {
     if (drop == null) return '<span class="badge b0">–</span>';
@@ -183,7 +187,7 @@
     <section class="head">
       <div>${sampleNote(meta)}
         <h1 class="h1">오늘의 추천 ${rec.top.length}</h1>
-        <p class="sub">내 조건에 맞는 단지·평형 ${rec.candidateCount}곳 중 지금 사기 좋은 순서로 골랐어요.</p>
+        <p class="sub">내 조건에 맞는 단지·평형 ${rec.candidateCount}곳 중 지금 사기 좋은 순서로 골랐어요.${rec.smallExcluded ? ` (${rec.filters.min_households}세대 미만 소형 단지 ${rec.smallExcluded}곳은 뺐어요)` : ''}</p>
       </div>
       <div class="chips">
         <span class="chip on" style="display:inline-flex;align-items:center">${esc(rec.regions.join(' · '))}</span>
@@ -212,7 +216,7 @@
         <a class="list-r" href="#/unit/${encodeURIComponent(u.id)}">
           <div class="rank">${u.rank}</div>
           <div><div class="name">${esc(u.name)}${u.isNew ? '<span class="new">NEW</span>' : ''}</div>
-            <div class="small muted">${esc(u.region)} ${esc(u.dong)} · ${u.pyeong}평 · ${u.built || '?'}년</div></div>
+            <div class="small muted">${esc(u.region)} ${esc(u.dong)} · ${u.pyeong}평 · ${u.built || '?'}년${hhText(u.complex) ? ' · ' + hhText(u.complex) : ''}</div></div>
           <div><div style="font-weight:600;font-size:16px">${won(u.recent)}</div>
             <div class="small muted">최고 ${won(u.peak && u.peak.price)}</div></div>
           <div>${badge(u.drop)}</div>
@@ -338,11 +342,13 @@
     <section class="row">
       <div class="grow card"><h2>단지 정보</h2>
         <div class="grid g4">
-          ${[['준공', `${u.built || '?'}년 (${age}년차)`], ['전용 · 평형', `${u.area}㎡ · 약 ${u.pyeong}평`], ['최근 2년 거래', `${u.trades2y}건`], ['최근 6개월 거래', `${u.trades6m}건`],
+          ${[['세대수', u.complex && u.complex.households ? hhText(u.complex) + (u.complex.source === 'kapt' ? '' : ' (거래량으로 추정)') : '확인 전'],
+             ...(u.complex && u.complex.source === 'kapt' ? [['동 수', (u.complex.dongCnt || '–') + '개 동'], ['난방', esc(u.complex.heat || '–')], ['주차 (세대당)', u.complex.parking ? u.complex.parking + '대' : '–']] : []),
+             ['준공', `${u.built || '?'}년 (${age}년차)`], ['전용 · 평형', `${u.area}㎡ · 약 ${u.pyeong}평`], ['최근 2년 거래', `${u.trades2y}건`], ['최근 6개월 거래', `${u.trades6m}건`],
              ['전세 (최근 1년 중간값)', u.jeonse ? won(u.jeonse) : '거래 없음'], ['전세가율', u.jratio ? pct(u.jratio) : '–'], ['마지막 거래', `${dateLabel(u.last.date)} · ${u.last.floor}층`], ['주소', `${esc(u.dong)} ${esc(u.jibun)}`]]
             .map(([k, v]) => `<div style="background:#F2F2F7;border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:4px"><span class="small muted">${k}</span><span style="font-size:16px;font-weight:600">${v}</span></div>`).join('')}
         </div>
-        <div class="small muted">세대수·주차·관리비·용적률·대지지분은 2단계(공동주택관리정보시스템·건축물대장)에서 연결해요.</div>
+        <div class="small muted">${u.complex && u.complex.source === 'kapt' ? '세대수·동 수·난방·주차: 공동주택관리정보시스템. ' : '세대수는 거래량으로 추정한 값이에요. 공동주택관리정보시스템 API를 신청하면 정확한 값으로 바뀌어요. '}관리비·용적률·대지지분은 2단계에서 연결해요.</div>
       </div>
       <div class="card side-w"><h2>재건축</h2>
         ${age >= 30 ? `<div style="font-size:15px">준공 ${age}년차라 <b>재건축을 검토할 수 있는 나이</b>예요.</div>` : `<div style="font-size:15px">준공 ${age}년차예요. 보통 30년이 지나야 재건축을 검토해요.</div>`}
@@ -545,7 +551,7 @@
     <section class="head"><div><h1 class="h1">내 조건</h1><p class="sub">조건은 저장소의 <b>config.json</b> 파일에서 바꿔요. 바꾸면 다음 날 아침 추천에 반영돼요.</p></div></section>
     <section class="grid g2">
       <div class="card"><h2>찾는 집</h2>
-        ${[['지역', rec.regions.join(', ')], ['전용면적', `${f.area_min_m2}~${f.area_max_m2}㎡`], ['예산 (집값)', won(f.max_price_manwon) + ' 이하'], ['최소 거래 수', `최근 2년 ${f.min_trades_2y}건 이상`], ['가격 계산에서 빼는 거래', `${f.exclude_low_floor_upto}층 이하, ${f.exclude_direct_deal ? '직거래, ' : ''}취소된 거래`]]
+        ${[['지역', rec.regions.join(', ')], ['전용면적', `${f.area_min_m2}~${f.area_max_m2}㎡`], ['예산 (집값)', won(f.max_price_manwon) + ' 이하'], ['단지 규모', (f.min_households || 0) + '세대 이상'], ['최소 거래 수', `최근 2년 ${f.min_trades_2y}건 이상`], ['가격 계산에서 빼는 거래', `${f.exclude_low_floor_upto}층 이하, ${f.exclude_direct_deal ? '직거래, ' : ''}취소된 거래`]]
           .map(([k, v]) => `<div class="kv" style="padding:10px 0;border-bottom:1px solid #E5E5EA"><span class="muted">${k}</span><b>${esc(v)}</b></div>`).join('')}</div>
       <div class="card"><h2>점수 비중 (합계 100)</h2>
         ${Object.keys(names).map((k) => `<div style="display:flex;align-items:center;gap:12px"><span style="width:120px" class="muted">${names[k]}</span>

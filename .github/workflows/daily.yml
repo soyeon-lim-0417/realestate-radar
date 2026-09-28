@@ -41,6 +41,7 @@ jobs:
         run: |
           if [ -n "$DATA_GO_KR_KEY" ]; then
             python collector/fetch_molit.py
+            python collector/fetch_kapt.py || echo "K-apt 는 이번에 건너뜀"
             python collector/fetch_rone.py || echo "R-ONE 은 이번에 건너뜀"
             python collector/build.py
           else
@@ -53,7 +54,7 @@ jobs:
         run: |
           git config user.name "radar-bot"
           git config user.email "radar-bot@users.noreply.github.com"
-          for p in data/raw data/history data/rone.json site/data; do
+          for p in data/raw data/history data/rone.json data/kapt.json site/data; do
             [ -e "$p" ] && git add "$p"
           done
           git diff --cached --quiet || git commit -m "데이터 업데이트 $(TZ=Asia/Seoul date +%F)"

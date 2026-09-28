@@ -321,6 +321,69 @@ def score_unit(u, region, cfg, today):
     return score, reason, tags, {k: round(v, 2) for k, v in parts.items()}, commute
 
 
+# ---------- 단지 규모 (세대수) ----------
+import re
+from difflib import SequenceMatcher
+
+
+def norm_name(n):
+    n = re.sub(r"\(.*?\)", "", n or "")
+    n = re.sub(r"아파트|APT|apt|\s|[·\-_,.]", "", n)
+    return n.lower()
+
+
+def load_kapt():
+    p = ROOT / "data" / "kapt.json"
+    if not p.exists():
+        return {}
+    idx = defaultdict(list)  # (구코드, 동이름) → 단지들
+    for code, k in json.loads(p.read_text(encoding="utf-8")).items():
+        addr = k.get("kaptAddr") or ""
+        m = re.search(r"([가-힣0-9]+동[0-9]*가?)\s+([0-9]+)(?:-([0-9]+))?", addr)
+        dong = m.group(1) if m else ""
+        k["_dong"], k["_bon"] = dong, (m.group(2) if m else None)
+        k["_nm"] = norm_name(k.get("kaptName") or k.get("name"))
+        k["code"] = code
+        idx[(k.get("lawd"), dong)].append(k)
+    return idx
+
+
+def match_kapt(idx, lawd, dong, jibun, name):
+    cands = idx.get((lawd, dong), [])
+    if not cands:
+        return None
+    bon = (jibun or "").split("-")[0].strip()
+    nm = norm_name(name)
+    best, score = None, 0.0
+    for k in cands:
+        sc = SequenceMatcher(None, nm, k["_nm"]).ratio()
+        if nm and k["_nm"] and (nm in k["_nm"] or k["_nm"] in nm):
+            sc = max(sc, 0.85)
+        if bon and k["_bon"] == bon:
+            sc += 0.5
+        if sc > score:
+            best, score = k, sc
+    return best if score >= 0.75 else None
+
+
+def complex_size(u, ctotal, cfirst, kidx, today):
+    """세대수: K-apt 에서 찾으면 그 값, 못 찾으면 거래량으로 추정 (1년에 약 4%가 거래된다고 가정)."""
+    k = match_kapt(kidx, u["lawd"], u["dong"], u["jibun"], u["name"]) if kidx else None
+    hh = to_int(k.get("kaptdaCnt")) if k else None
+    if hh:
+        park = (to_int(k.get("kaptdPcnt")) or 0) + (to_int(k.get("kaptdPcntu")) or 0)
+        return {"households": hh, "source": "kapt", "dongCnt": to_int(k.get("kaptDongCnt")),
+                "heat": k.get("codeHeatNm"), "hall": k.get("codeHallNm"),
+                "parking": round(park / hh, 2) if park else None, "kaptCode": k["code"],
+                "subway": " ".join(x for x in [k.get("subwayLine"), k.get("subwayStation")] if x) or None,
+                "walk": k.get("kaptdWtimesub")}
+    start = max(2019.0, float(u["built"] or 2019) + 0.5)
+    years = max(0.5, (today.year + today.month / 12) - start)
+    est = ctotal / years / 0.04
+    young = u["built"] and u["built"] >= today.year - 3  # 새 아파트는 거래가 적어 추정 불가
+    return {"households": None if young else int(round(est / 10) * 10), "source": "estimate" if not young else "unknown"}
+
+
 # ---------- 메인 ----------
 def main():
     sample = "--sample" in sys.argv
@@ -335,7 +398,9 @@ def main():
     (SITE_DATA / "units").mkdir(parents=True, exist_ok=True)
 
     f = cfg["filters"]
-    regions, candidates, all_units = {}, [], 0
+    min_hh = f.get("min_households", 0)
+    kidx = {} if sample else load_kapt()
+    regions, candidates, all_units, small_out = {}, [], 0, 0
     for reg in cfg["regions"]:
         lawd = reg["lawd_cd"]
         trades = [t for t in (norm_trade(r, lawd) for r in load_raw(raw_dir, "trade", lawd)) if t]
@@ -347,6 +412,10 @@ def main():
         rents_by_match = defaultdict(list)
         for r in rents:
             rents_by_match[(r["match"], r["bucket"])].append(r)
+        ctotal, cfirst = defaultdict(int), {}
+        for t in trades:
+            if not t["cancelled"]:
+                ctotal[t["key"]] += 1
         groups = defaultdict(list)
         for t in trades:
             if f["area_min_m2"] <= t["area"] <= f["area_max_m2"]:
@@ -356,8 +425,13 @@ def main():
             if not u:
                 continue
             all_units += 1
+            u["complex"] = complex_size(u, ctotal[ts[0]["key"]], cfirst, kidx, today)
+            hh = u["complex"]["households"]
+            big_enough = hh is None or hh >= min_hh
+            if not big_enough:
+                small_out += 1
             ok = (u["recent"] and u["peak"] and u["recent"] <= f["max_price_manwon"]
-                  and u["trades2y"] >= f["min_trades_2y"])
+                  and u["trades2y"] >= f["min_trades_2y"] and big_enough)
             u["region"] = reg["name"]
             if ok:
                 u["score"], u["reason"], u["tags"], u["parts"], u["commute"] = score_unit(u, region, cfg, today)
@@ -383,7 +457,7 @@ def main():
 
     def light(u):
         keys = ["id", "name", "dong", "region", "lawd", "built", "area", "pyeong", "peak", "recent", "last",
-                "drop", "jratio", "jeonse", "score", "reason", "tags", "trades6m", "commute", "parts"]
+                "drop", "jratio", "jeonse", "score", "reason", "tags", "trades6m", "commute", "parts", "complex"]
         return {k: u.get(k) for k in keys}
 
     recommend = {
@@ -392,7 +466,8 @@ def main():
         "newCount": sum(1 for u in top if prev_ids and u["id"] not in prev_ids) if prev_ids else None,
         "drop10": sum(1 for u in candidates if (u["drop"] or 0) >= 0.10),
         "drop20": sum(1 for u in candidates if (u["drop"] or 0) >= 0.20),
-        "candidateCount": len(candidates), "unitCount": all_units,
+        "candidateCount": len(candidates), "unitCount": all_units, "smallExcluded": small_out,
+        "kapt": bool(kidx),
         "filters": f, "weights": cfg["weights"], "regions": [r["name"] for r in cfg["regions"]],
     }
     rone_path = ROOT / "data" / "rone.json"
@@ -406,6 +481,7 @@ def main():
     (SITE_DATA / "meta.json").write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
     if meta["hasRone"]:
         shutil.copy(rone_path, SITE_DATA / "rone.json")
+    print(f"소형 단지로 빠진 곳 {small_out}개 · K-apt {'사용' if kidx else '없음(추정)'}")
     print(f"단지·평형 {all_units}개 중 후보 {len(candidates)}개 · 추천 {len(top)}개 · {'테스트' if sample else '실'}데이터")
 
 
