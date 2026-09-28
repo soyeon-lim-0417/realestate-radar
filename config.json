@@ -63,7 +63,7 @@
     "age": 5
   },
   "history_start": "201901",
-  "refetch_recent_months": 3,
+  "refetch_recent_months": 7,
   "top_n": 10,
   "rone": {
     "_설명": "한국부동산원 R-ONE 키가 있을 때만 사용. 통계표 ID가 바뀌면 여기를 고쳐요.",

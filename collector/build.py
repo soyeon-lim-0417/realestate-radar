@@ -216,9 +216,9 @@ def region_report(name, trades, rents, last_ym):
 def analyze_unit(ts, rents_by_match, cfg, today):
     f = cfg["filters"]
     ts = sorted(ts, key=lambda t: t["date"])
-    # 등기 안 된 거래: 2023년부터 등기일이 공개돼요. 계약 후 90일이 지났는데 등기가 없으면
-    # 잔금을 안 치렀거나 신고가 띄우기일 수 있어서 계산에서 빼요.
-    rg_cut = (today - timedelta(days=90)).isoformat()
+    # 등기 안 된 거래: 2023년부터 등기일이 공개돼요. 보통 계약 후 4~6개월 안에 등기되는데,
+    # 6개월이 지나도 등기가 없으면 잔금을 안 치렀거나 신고가 띄우기일 수 있어서 계산에서 빼요.
+    rg_cut = (today - timedelta(days=183)).isoformat()
     unreg = {id(t) for t in ts if not t["cancelled"] and "2023-01-01" <= t["date"] <= rg_cut and not t["rgst"]}
     valid = [t for t in ts if not t["cancelled"]
              and not (f["exclude_direct_deal"] and t["direct"])
