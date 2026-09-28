@@ -1,0 +1,61 @@
+name: 매일 아침 데이터 업데이트
+
+on:
+  schedule:
+    - cron: "50 20 * * *"   # 매일 한국시간 오전 5시 50분
+  workflow_dispatch: {}      # Actions 탭에서 '지금 실행'도 가능
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: daily-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 실거래가 모으기 · 분석하기
+        env:
+          DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY }}
+          RONE_KEY: ${{ secrets.RONE_KEY }}
+          TZ: Asia/Seoul
+        run: |
+          if [ -n "$DATA_GO_KR_KEY" ]; then
+            python collector/fetch_molit.py
+            python collector/fetch_rone.py || echo "R-ONE 은 이번에 건너뜀"
+            python collector/build.py
+          else
+            echo "인증키가 아직 없어 테스트 데이터로 사이트를 만들어요"
+            python collector/make_sample.py
+            python collector/build.py --sample
+          fi
+
+      - name: 모은 데이터 저장
+        run: |
+          git config user.name "radar-bot"
+          git config user.email "radar-bot@users.noreply.github.com"
+          for p in data/raw data/history data/rone.json site/data; do
+            [ -e "$p" ] && git add "$p"
+          done
+          git diff --cached --quiet || git commit -m "데이터 업데이트 $(TZ=Asia/Seoul date +%F)"
+          git push
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,45 @@
+{
+  "_설명": "이 파일만 고치면 관심 지역·평형·예산·점수 비중을 바꿀 수 있어요.",
+
+  "regions": [
+    { "name": "마포구", "lawd_cd": "11440", "commute_min": 25 },
+    { "name": "성동구", "lawd_cd": "11200", "commute_min": 30 },
+    { "name": "영등포구", "lawd_cd": "11560", "commute_min": 20 }
+  ],
+
+  "commute_by_dong": {
+    "_설명": "동별 출퇴근 시간(분)을 알면 적어 주세요. 없으면 구 기본값을 써요. 예: \"공덕동\": 20"
+  },
+
+  "school_by_dong": {
+    "_설명": "학군이 좋다고 보는 동에 1~5점. 없으면 보통(3점)으로 계산해요. 예: \"대흥동\": 5"
+  },
+
+  "filters": {
+    "area_min_m2": 49,
+    "area_max_m2": 70,
+    "max_price_manwon": 180000,
+    "min_trades_2y": 3,
+    "exclude_low_floor_upto": 3,
+    "exclude_direct_deal": true
+  },
+
+  "weights": {
+    "_설명": "합이 100이 되게. 오를 가능성 > 출퇴근 > 학군 > 컨디션 순서가 기본값",
+    "price_drop": 30,
+    "growth": 30,
+    "commute": 20,
+    "school": 10,
+    "condition": 10
+  },
+
+  "history_start": "201901",
+  "refetch_recent_months": 3,
+  "top_n": 10,
+
+  "rone": {
+    "_설명": "한국부동산원 R-ONE 키가 있을 때만 사용. 통계표 ID가 바뀌면 여기를 고쳐요.",
+    "weekly_sale_index_statbl_id": "T244183132827305",
+    "weekly_jeonse_index_statbl_id": ""
+  }
+}
