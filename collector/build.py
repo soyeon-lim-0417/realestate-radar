@@ -221,6 +221,20 @@ def analyze_unit(ts, rents_by_match, cfg, today):
     if not valid:
         return None
 
+    # 튀는 거래 걸러내기: 앞뒤 1년 거래(2건 이상) 중간값보다 25% 넘게 싸거나 비싸면 '이상치'
+    #  (가족 간 거래, 지분 거래 등 시세와 다른 거래)
+    outliers = set()
+    for i, t in enumerate(valid):
+        d = datetime.fromisoformat(t["date"])
+        nb = [u["price"] for j, u in enumerate(valid) if j != i and abs((datetime.fromisoformat(u["date"]) - d).days) <= 365]
+        if len(nb) >= 2:
+            m = median(nb)
+            if t["price"] < m * 0.75 or t["price"] > m * 1.25:
+                outliers.add(id(t))
+    valid = [t for t in valid if id(t) not in outliers]
+    if not valid:
+        return None
+
     # 전고점: 앞뒤 6개월 거래 중간값보다 20% 넘게 튀는 거래는 이상치로 보고 제외
     def neighborhood_median(t):
         d = datetime.fromisoformat(t["date"])
@@ -271,11 +285,12 @@ def analyze_unit(ts, rents_by_match, cfg, today):
         "last": {"price": last["price"], "date": last["date"], "floor": last["floor"]},
         "drop": (1 - recent / peak["price"]) if (recent and peak) else None,
         "trades2y": sum(1 for t in valid if t["date"] >= cut24),
+        "trades1y": sum(1 for t in valid if t["date"] >= cut12),
         "trades6m": len(recent6),
         "jeonse": round(jeonse) if jeonse else None, "jeonseCount": len(j_list),
         "jratio": (jeonse / recent) if (jeonse and recent) else None,
         "trades": [{"d": t["date"], "p": t["price"], "f": t["floor"],
-                    "x": "취소" if t["cancelled"] else ("직거래" if t["direct"] else ("저층" if t["floor"] <= f["exclude_low_floor_upto"] else ""))}
+                    "x": "취소" if t["cancelled"] else ("직거래" if t["direct"] else ("저층" if t["floor"] <= f["exclude_low_floor_upto"] else ("시세와 동떨어짐" if id(t) in outliers else "")))}
                    for t in ts],
         "monthly": [{"ym": m, "p": round(median(v))} for m, v in sorted(monthly.items())],
         "jmonthly": [{"ym": m, "p": round(median(v))} for m, v in sorted(jmonthly.items())],
@@ -438,7 +453,7 @@ def main():
             if not big_enough:
                 small_out += 1
             ok = (u["recent"] and u["peak"] and u["last"]["price"] < f["max_price_manwon"] and u["recent"] < f["max_price_manwon"]
-                  and u["trades2y"] >= f["min_trades_2y"] and big_enough)
+                  and u["trades2y"] >= f["min_trades_2y"] and u["trades1y"] >= f.get("min_trades_1y", 2) and big_enough)
             u["region"] = reg["name"]
             if ok:
                 u["score"], u["reason"], u["tags"], u["parts"], u["commute"] = score_unit(u, region, cfg, today)

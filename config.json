@@ -25,6 +25,7 @@
     "_예산설명": "max_price_manwon 미만(보다 싼 곳)만 추천해요. 15억 = 150000",
     "min_households": 300,
     "min_trades_2y": 3,
+    "min_trades_1y": 2,
     "exclude_low_floor_upto": 3,
     "exclude_direct_deal": true
   },
