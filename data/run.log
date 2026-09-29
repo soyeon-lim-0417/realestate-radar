@@ -100,6 +100,8 @@
 완료 · API 호출 98회 · 오류 0건
 == python collector/fetch_kapt.py
 K-apt 정보가 최근 것이라 건너뜀
+== python collector/fetch_kakao.py
+KAKAO_REST_KEY 없음 · 초품아·역 거리 찾기는 건너뜀
 == python collector/fetch_rone.py
 RONE_KEY 없음 · 부동산원 지수는 건너뜀
 == python collector/build.py
