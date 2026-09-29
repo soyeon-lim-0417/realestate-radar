@@ -1,15 +1,103 @@
 == python collector/fetch_molit.py
-전월세 API 사용 불가 · 전세 정보 없이 진행해요 (API 호출 실패: <urlopen error timed out>)
-공공데이터포털 응답이 계속 없어 이번엔 여기까지 받아요
-완료 · API 호출 0회 · 오류 8건
-  오류: 마포구 trade 202603: API 호출 실패: <urlopen error timed out>
-  오류: 마포구 trade 202604: API 호출 실패: <urlopen error timed out>
-  오류: 마포구 trade 202605: API 호출 실패: <urlopen error timed out>
-  오류: 마포구 trade 202606: API 호출 실패: <urlopen error timed out>
-  오류: 마포구 trade 202607: API 호출 실패: <urlopen error timed out>
-  오류: 마포구 trade 202608: API 호출 실패: <urlopen error timed out>
-  오류: 마포구 trade 202609: API 호출 실패: <urlopen error timed out>
-  오류: 성동구 trade 202603: API 호출 실패: <urlopen error timed out>
+마포구 trade 202603: 158건
+마포구 trade 202604: 232건
+마포구 trade 202605: 281건
+마포구 trade 202606: 158건
+마포구 trade 202607: 150건
+마포구 trade 202608: 114건
+마포구 trade 202609: 32건
+마포구 rent 202603: 1150건
+마포구 rent 202604: 909건
+마포구 rent 202605: 823건
+마포구 rent 202606: 858건
+마포구 rent 202607: 818건
+마포구 rent 202608: 784건
+마포구 rent 202609: 581건
+성동구 trade 202603: 115건
+성동구 trade 202604: 226건
+성동구 trade 202605: 231건
+성동구 trade 202606: 132건
+성동구 trade 202607: 103건
+성동구 trade 202608: 55건
+성동구 trade 202609: 24건
+성동구 rent 202603: 883건
+성동구 rent 202604: 786건
+성동구 rent 202605: 736건
+성동구 rent 202606: 826건
+성동구 rent 202607: 630건
+성동구 rent 202608: 646건
+성동구 rent 202609: 313건
+영등포구 trade 202603: 271건
+영등포구 trade 202604: 404건
+영등포구 trade 202605: 322건
+영등포구 trade 202606: 264건
+영등포구 trade 202607: 262건
+영등포구 trade 202608: 143건
+영등포구 trade 202609: 54건
+영등포구 rent 202603: 1154건
+영등포구 rent 202604: 840건
+영등포구 rent 202605: 783건
+영등포구 rent 202606: 779건
+영등포구 rent 202607: 833건
+영등포구 rent 202608: 674건
+영등포구 rent 202609: 486건
+강서구 trade 202603: 362건
+강서구 trade 202604: 617건
+강서구 trade 202605: 589건
+강서구 trade 202606: 386건
+강서구 trade 202607: 396건
+강서구 trade 202608: 261건
+강서구 trade 202609: 151건
+강서구 rent 202603: 1300건
+강서구 rent 202604: 1091건
+강서구 rent 202605: 985건
+강서구 rent 202606: 1016건
+강서구 rent 202607: 1279건
+강서구 rent 202608: 1289건
+강서구 rent 202609: 553건
+동작구 trade 202603: 178건
+동작구 trade 202604: 318건
+동작구 trade 202605: 357건
+동작구 trade 202606: 156건
+동작구 trade 202607: 242건
+동작구 trade 202608: 123건
+동작구 trade 202609: 34건
+동작구 rent 202603: 814건
+동작구 rent 202604: 701건
+동작구 rent 202605: 672건
+동작구 rent 202606: 635건
+동작구 rent 202607: 591건
+동작구 rent 202608: 526건
+동작구 rent 202609: 394건
+강동구 trade 202603: 237건
+강동구 trade 202604: 431건
+강동구 trade 202605: 507건
+강동구 trade 202606: 269건
+강동구 trade 202607: 275건
+강동구 trade 202608: 168건
+강동구 trade 202609: 60건
+강동구 rent 202603: 1219건
+강동구 rent 202604: 1155건
+강동구 rent 202605: 1090건
+강동구 rent 202606: 1150건
+강동구 rent 202607: 1087건
+강동구 rent 202608: 767건
+강동구 rent 202609: 616건
+서대문구 trade 202603: 244건
+서대문구 trade 202604: 327건
+서대문구 trade 202605: 314건
+서대문구 trade 202606: 221건
+서대문구 trade 202607: 238건
+서대문구 trade 202608: 126건
+서대문구 trade 202609: 54건
+서대문구 rent 202603: 609건
+서대문구 rent 202604: 543건
+서대문구 rent 202605: 442건
+서대문구 rent 202606: 487건
+서대문구 rent 202607: 531건
+서대문구 rent 202608: 461건
+서대문구 rent 202609: 285건
+완료 · API 호출 98회 · 오류 0건
 == python collector/fetch_kapt.py
 K-apt 정보가 최근 것이라 건너뜀
 == python collector/fetch_rone.py
