@@ -124,7 +124,8 @@
     "line_2_9": 3
   },
   "school": {
-    "_설명": "학군 점수: 단지 반경 1km 안 학원 수가 이 숫자 이상이면 만점 (그보다 적으면 비율만큼)",
-    "academies_full": 300
+    "_설명": "학군 점수: 단지 반경 1km 안 학원 수. academies_zero 이하면 0점, academies_full 이상이면 만점, 그 사이는 비율대로 (우리 지역 단지 중간값이 약 200곳)",
+    "academies_zero": 150,
+    "academies_full": 400
   }
 }

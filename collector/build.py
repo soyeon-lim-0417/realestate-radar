@@ -330,8 +330,9 @@ def score_unit(u, region, cfg, today):
     gmin = cfg.get("gangnam_by_dong", {}).get(u["dong"], reg_cfg.get("gangnam_min", 40) + walk)
     # 학군: 반경 1km 안 학원 수 (학원가 규모). 기준 개수 이상이면 만점
     acad = c.get("academies")
-    acad_full = cfg.get("school", {}).get("academies_full", 300)
-    school_score = clamp(acad / acad_full) if acad is not None else 0.4
+    sc = cfg.get("school", {})
+    a0, a1 = sc.get("academies_zero", 150), sc.get("academies_full", 400)
+    school_score = clamp((acad - a0) / (a1 - a0)) if acad is not None else 0.4
     # 환금성: 1년에 단지 세대 중 몇 %가 거래되나 (모르면 거래 건수로)
     per_year = u.get("complexTrades1y") or 0
     turnover = per_year / hh if hh else None
