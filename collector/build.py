@@ -328,7 +328,10 @@ def score_unit(u, region, cfg, today):
     # 강남 접근성: 구별 강남역까지 대략 시간 + 단지에서 지하철역까지 걷는 시간
     walk = WALK.get(c.get("walk") or "", 10)
     gmin = cfg.get("gangnam_by_dong", {}).get(u["dong"], reg_cfg.get("gangnam_min", 40) + walk)
-    school = cfg.get("school_by_dong", {}).get(u["dong"], 3)
+    # 학군: 반경 1km 안 학원 수 (학원가 규모). 기준 개수 이상이면 만점
+    acad = c.get("academies")
+    acad_full = cfg.get("school", {}).get("academies_full", 300)
+    school_score = clamp(acad / acad_full) if acad is not None else 0.4
     # 환금성: 1년에 단지 세대 중 몇 %가 거래되나 (모르면 거래 건수로)
     per_year = u.get("complexTrades1y") or 0
     turnover = per_year / hh if hh else None
@@ -365,7 +368,7 @@ def score_unit(u, region, cfg, today):
         "tier": (1 - (tier - 1) * 0.2) if tier else 0.5,
         "growth": clamp(0.7 * region["okCount"] / max(1, region["checkCount"]) + 0.3 * clamp(((u["jratio"] or 0.45) - 0.4) / 0.3)),
         "gangnam": clamp((70 - gmin) / 45),
-        "school": clamp((school - 1) / 4),
+        "school": school_score,
         "size": size,
         "liquidity": liquidity,
         "structure": HALL.get(hall, 0.5),
@@ -383,7 +386,7 @@ def score_unit(u, region, cfg, today):
         "growth": f"{region['name']} 흐름이 '{region['status']}'",
         "tier": f"{tier:g}급지" if tier else "급지 미정",
         "gangnam": f"강남까지 약 {gmin}분",
-        "school": "학군 좋은 동네",
+        "school": f"학원가 (1km 안 학원 {acad}곳)" if acad is not None else "학군",
         "size": f"{hh:,}세대 대단지" if hh else "대단지",
         "liquidity": "거래가 잘 되는 단지 (팔기 쉬움)",
         "structure": f"{hall} 구조" if hall else "구조 양호",
@@ -426,7 +429,7 @@ def score_unit(u, region, cfg, today):
         tags.append("신축급")
     elif age >= 30:
         tags.append("준공 30년+ (재건축 연한)")
-    detail = {"tier": tier, "bonus": bonus, "gold": gold, "station": st, "elementary": el, "lines": c.get("lines"), "gangnamMin": gmin, "walk": c.get("walk"), "school": school, "turnover": round(turnover, 3) if turnover is not None else None,
+    detail = {"tier": tier, "bonus": bonus, "gold": gold, "station": st, "elementary": el, "lines": c.get("lines"), "gangnamMin": gmin, "walk": c.get("walk"), "academies": acad, "turnover": round(turnover, 3) if turnover is not None else None,
               "tradesPerYear": per_year, "hall": hall, "age": age}
     return score, reason, tags, {k: round(v, 2) for k, v in parts.items()}, detail
 
@@ -549,6 +552,7 @@ def main():
             if kk and kk.get("x"):
                 u["complex"]["elementary"] = kk.get("elementary")
                 u["complex"]["station"] = kk.get("station")
+                u["complex"]["academies"] = kk.get("academies")
             hh = u["complex"]["households"]
             big_enough = hh is None or hh >= min_hh
             if not big_enough:

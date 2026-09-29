@@ -36,6 +36,11 @@ def nearest(key, x, y, code, radius, name_has=None):
     return None
 
 
+def count_places(key, x, y, code, radius):
+    d = get("search/category.json", {"category_group_code": code, "x": x, "y": y, "radius": radius, "size": 1}, key)
+    return int(d.get("meta", {}).get("total_count") or 0)
+
+
 def main():
     key = os.environ.get("KAKAO_REST_KEY", "").strip()
     if not key:
@@ -51,6 +56,18 @@ def main():
     done = errors = 0
     for code, k in kapt.items():
         if code in out:
+            o = out[code]
+            # 예전에 찾은 단지에 학원 수가 없으면 학원 수만 추가로 셈
+            if o.get("x") and "academies" not in o:
+                try:
+                    o["academies"] = count_places(key, o["x"], o["y"], "AC5", 1000)
+                    done += 1
+                except Exception as e:
+                    errors += 1
+                    if errors >= 5 and done == 0:
+                        print(f"카카오 API 사용 불가 ({e})")
+                        break
+                time.sleep(0.03)
             continue
         addr = k.get("doroJuso") or k.get("kaptAddr")
         if not addr:
@@ -65,6 +82,7 @@ def main():
                 "x": x, "y": y,
                 "elementary": nearest(key, x, y, "SC4", 1000, "초등학교"),
                 "station": nearest(key, x, y, "SW8", 1500),
+                "academies": count_places(key, x, y, "AC5", 1000),
             }
             done += 1
         except Exception as e:

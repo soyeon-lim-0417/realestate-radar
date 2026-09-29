@@ -156,7 +156,7 @@
     gangnam: ['강남 출퇴근', '강남역까지 대략 시간. 25분이면 만점, 70분이면 0점'],
     station: ['역세권', '가장 가까운 지하철역까지 300m 안이면 만점 · 5분 안 걷기 만점'],
     elementary: ['초품아', '가장 가까운 초등학교 300m 안이면 만점 (위치 자료 없으면 절반)'],
-    school: ['학군', '학원가·학군지로 표시한 동 (내 조건에서 수정)'],
+    school: ['학군', '단지 반경 1km 안 학원 수 (학원가 규모). 기준 개수 이상이면 만점'],
     size: ['대단지', '1,500세대 이상 만점 · 1,000세대 이상 높은 점수'],
     liquidity: ['환금성', '1년에 세대의 6% 이상 거래되면 만점 (팔기 쉬운 정도)'],
     structure: ['계단식', '계단식 만점 · 혼합식 중간 · 복도식 낮음'],
@@ -344,6 +344,7 @@
            ['전세가율', u.jratio ? pct(u.jratio) : '–'],
            ['거래 (6개월 · 2년)', `${u.trades6m}건 · ${u.trades2y}건`],
            ['재건축', age >= 30 ? `${age}년차 · 검토 가능 연한` : `${age}년차 · 30년 전`],
+           ['주변 학원 (1km)', u.complex && u.complex.academies != null ? u.complex.academies.toLocaleString('ko-KR') + '곳' : '확인 전'],
            ['초등학교', (() => { const el = (u.scoreDetail && u.scoreDetail.elementary) || (u.complex && u.complex.elementary); return el && el.m != null ? esc(el.name) + ' ' + el.m + 'm' + (el.m <= 300 ? ' · 초품아' : '') : '확인 전'; })()]]
           .map(([k, v]) => `<div style="background:#F2F2F7;border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px"><span class="small muted">${k}</span><span style="font-size:15px;font-weight:600">${v}</span></div>`).join('')}
       </div>
