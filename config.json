@@ -62,9 +62,9 @@
     "growth": 15,
     "tier": 15,
     "gangnam": 15,
-    "school": 10,
+    "school": 5,
     "size": 10,
-    "liquidity": 5,
+    "liquidity": 10,
     "structure": 5,
     "age": 5
   },
