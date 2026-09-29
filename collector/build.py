@@ -337,7 +337,10 @@ def score_unit(u, region, cfg, today):
     hall = c.get("hall")
     drop = u["drop"] if u["drop"] is not None else 0
 
-    tier = cfg.get("tier_by_dong", {}).get(u["dong"], cfg.get("tier_by_region", {}).get(reg_cfg["name"]))
+    tier = cfg.get("tier_by_region", {}).get(reg_cfg["name"])
+    if tier and u["dong"] in cfg.get("tier_down_dong", {}).get("동", []):
+        tier += 1  # 구 급지보다 한 단계 낮춤
+    tier = cfg.get("tier_by_dong", {}).get(u["dong"], tier)
     parts = {
         "price_drop": clamp(drop / 0.25),
         "tier": (1 - (tier - 1) * 0.2) if tier else 0.5,
