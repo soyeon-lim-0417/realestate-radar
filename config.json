@@ -61,10 +61,12 @@
     "price_drop": 20,
     "growth": 15,
     "tier": 15,
-    "gangnam": 15,
-    "school": 5,
     "size": 10,
     "liquidity": 10,
+    "gangnam": 5,
+    "station": 5,
+    "elementary": 5,
+    "school": 5,
     "structure": 5,
     "age": 5
   },
@@ -124,5 +126,9 @@
       "중곡동",
       "신월동"
     ]
+  },
+  "bonus": {
+    "_설명": "가산점 (100점 위에 더해요)",
+    "line_2_9": 3
   }
 }

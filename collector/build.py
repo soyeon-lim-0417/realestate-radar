@@ -337,6 +337,25 @@ def score_unit(u, region, cfg, today):
     hall = c.get("hall")
     drop = u["drop"] if u["drop"] is not None else 0
 
+    # 역세권: 카카오 거리(있으면) → 없으면 공동주택 자료의 '역까지 걷는 시간'
+    st = c.get("station")
+    if st and st.get("m") is not None:
+        m = st["m"]
+        station = 1.0 if m <= 300 else 0.8 if m <= 500 else 0.5 if m <= 800 else 0.2 if m <= 1200 else 0.0
+    else:
+        station = {"5분이내": 1.0, "5~10분이내": 0.7, "10~15분이내": 0.35, "15~20분이내": 0.1, "20분초과": 0.0}.get(c.get("walk") or "", 0.4)
+    # 초품아: 가장 가까운 초등학교 거리 (300m 안이면 사실상 단지 옆)
+    el = c.get("elementary")
+    if el and el.get("m") is not None:
+        m = el["m"]
+        elementary = 1.0 if m <= 300 else 0.6 if m <= 500 else 0.3 if m <= 800 else 0.0
+    else:
+        elementary = 0.5  # 아직 모름
+    # 2호선·9호선 가산점: 걸어갈 만한 역(역세권 점수 절반 이상)이 2·9호선이면
+    lines_txt = (c.get("lines") or "") + " " + ((st or {}).get("name") or "")
+    gold = [ln for ln in ("2호선", "9호선") if ln in lines_txt]
+    bonus = cfg.get("bonus", {}).get("line_2_9", 0) if (gold and station >= 0.5) else 0
+
     tier = cfg.get("tier_by_region", {}).get(reg_cfg["name"])
     if tier and u["dong"] in cfg.get("tier_down_dong", {}).get("동", []):
         tier += 1  # 구 급지보다 한 단계 낮춤
@@ -351,10 +370,12 @@ def score_unit(u, region, cfg, today):
         "liquidity": liquidity,
         "structure": HALL.get(hall, 0.5),
         "age": clamp(1 - age / 35),
+        "station": station,
+        "elementary": elementary,
     }
     total = sum(w.get(k, 0) * v for k, v in parts.items())
     scale = sum(w.get(k, 0) for k in parts) or 1
-    score = round(total / scale * 100)
+    score = round(total / scale * 100) + bonus
 
     peak_txt = "2021~22년 전고점" if u["peak"] else "전고점"
     lines = {
@@ -367,6 +388,8 @@ def score_unit(u, region, cfg, today):
         "liquidity": "거래가 잘 되는 단지 (팔기 쉬움)",
         "structure": f"{hall} 구조" if hall else "구조 양호",
         "age": f"{u['built']}년 준공으로 비교적 새 아파트",
+        "station": (f"{st['name'].split(' ')[0]} {st['m']}m" if st and st.get('m') is not None else f"역까지 {c.get('walk') or '?'}") + " 역세권",
+        "elementary": f"초품아 ({el['name']} {el['m']}m)" if el and el.get('m') is not None and el['m'] <= 300 else "초등학교 가까움",
     }
     top = sorted(parts, key=lambda k: w.get(k, 0) * parts[k], reverse=True)
     reason = " · ".join(lines[k] for k in top[:3])
@@ -383,6 +406,12 @@ def score_unit(u, region, cfg, today):
         tags.insert(0, f"{tier:g}급지")
     if hh and hh >= 1000:
         tags.append(f"대단지 {hh:,}세대")
+    if gold and bonus:
+        tags.insert(1 if tier else 0, "·".join(gold) + " 역세권")
+    elif station >= 0.7:
+        tags.append("역세권")
+    if el and el.get("m") is not None and el["m"] <= 300:
+        tags.append("초품아")
     if hall == "계단식":
         tags.append("계단식")
     elif hall == "복도식":
@@ -397,7 +426,7 @@ def score_unit(u, region, cfg, today):
         tags.append("신축급")
     elif age >= 30:
         tags.append("준공 30년+ (재건축 연한)")
-    detail = {"tier": tier, "gangnamMin": gmin, "walk": c.get("walk"), "school": school, "turnover": round(turnover, 3) if turnover is not None else None,
+    detail = {"tier": tier, "bonus": bonus, "gold": gold, "station": st, "elementary": el, "lines": c.get("lines"), "gangnamMin": gmin, "walk": c.get("walk"), "school": school, "turnover": round(turnover, 3) if turnover is not None else None,
               "tradesPerYear": per_year, "hall": hall, "age": age}
     return score, reason, tags, {k: round(v, 2) for k, v in parts.items()}, detail
 
@@ -459,6 +488,7 @@ def complex_size(u, ctotal, cfirst, kidx, today):
                 "heat": k.get("codeHeatNm"), "hall": k.get("codeHallNm"),
                 "parking": round(park / hh, 2) if park else None, "kaptCode": k["code"],
                 "subway": " ".join(x for x in [k.get("subwayLine"), k.get("subwayStation")] if x) or None,
+                "lines": k.get("subwayLine"),
                 "walk": k.get("kaptdWtimesub")}
     start = max(2019.0, float(u["built"] or 2019) + 0.5)
     years = max(0.5, (today.year + today.month / 12) - start)
@@ -483,6 +513,8 @@ def main():
     f = cfg["filters"]
     min_hh = f.get("min_households", 0)
     kidx = {} if sample else load_kapt()
+    kp = ROOT / "data" / "kakao.json"
+    kakao = {} if (sample or not kp.exists()) else json.loads(kp.read_text(encoding="utf-8"))
     regions, candidates, all_units, small_out = {}, [], 0, 0
     for reg in cfg["regions"]:
         lawd = reg["lawd_cd"]
@@ -513,6 +545,10 @@ def main():
             all_units += 1
             u["complex"] = complex_size(u, ctotal[ts[0]["key"]], cfirst, kidx, today)
             u["complexTrades1y"] = c1y[ts[0]["key"]]
+            kk = kakao.get(u["complex"].get("kaptCode") or "")
+            if kk and kk.get("x"):
+                u["complex"]["elementary"] = kk.get("elementary")
+                u["complex"]["station"] = kk.get("station")
             hh = u["complex"]["households"]
             big_enough = hh is None or hh >= min_hh
             if not big_enough:

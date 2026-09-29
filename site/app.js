@@ -154,6 +154,8 @@
     growth: ['오를 가능성', '동네 신호(거래·가격·전세·고점 여유) + 전세가율'],
     tier: ['급지', '1급지 만점 · 2급지 80% · 3급지 60% · 4급지 40% · 5급지 20%'],
     gangnam: ['강남 출퇴근', '강남역까지 대략 시간. 25분이면 만점, 70분이면 0점'],
+    station: ['역세권', '가장 가까운 지하철역까지 300m 안이면 만점 · 5분 안 걷기 만점'],
+    elementary: ['초품아', '가장 가까운 초등학교 300m 안이면 만점 (위치 자료 없으면 절반)'],
     school: ['학군', '학원가·학군지로 표시한 동 (내 조건에서 수정)'],
     size: ['대단지', '1,500세대 이상 만점 · 1,000세대 이상 높은 점수'],
     liquidity: ['환금성', '1년에 세대의 6% 이상 거래되면 만점 (팔기 쉬운 정도)'],
@@ -336,13 +338,13 @@
            ['구조', esc((u.complex && u.complex.hall) || '–')],
            ['준공', `${u.built || '?'}년 (${age}년차)`],
            ['전용 · 평형', `${u.area}㎡ · 약 ${u.pyeong}평`],
-           ['역까지', esc((u.complex && u.complex.walk) || '–')],
+           ['지하철', (() => { const sd = u.scoreDetail || {}; const st = sd.station || (u.complex && u.complex.station); const ln = (u.complex && u.complex.lines) || sd.lines; return esc(st && st.m != null ? st.name.split(' ')[0] + ' ' + st.m + 'm' : '역까지 ' + ((u.complex && u.complex.walk) || '–')) + (ln ? '<br><span class="small muted">' + esc(ln) + '</span>' : ''); })()],
            ['동 수 · 난방', u.complex && u.complex.source === 'kapt' ? `${u.complex.dongCnt || '–'}개 동 · ${esc(u.complex.heat || '–')}` : '–'],
            ['전세 (1년 중간값)', u.jeonse ? won(u.jeonse) : '거래 없음'],
            ['전세가율', u.jratio ? pct(u.jratio) : '–'],
            ['거래 (6개월 · 2년)', `${u.trades6m}건 · ${u.trades2y}건`],
            ['재건축', age >= 30 ? `${age}년차 · 검토 가능 연한` : `${age}년차 · 30년 전`],
-           ['주소', `${esc(u.dong)} ${esc(u.jibun)}`]]
+           ['초등학교', (() => { const el = (u.scoreDetail && u.scoreDetail.elementary) || (u.complex && u.complex.elementary); return el && el.m != null ? esc(el.name) + ' ' + el.m + 'm' + (el.m <= 300 ? ' · 초품아' : '') : '확인 전'; })()]]
           .map(([k, v]) => `<div style="background:#F2F2F7;border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px"><span class="small muted">${k}</span><span style="font-size:15px;font-weight:600">${v}</span></div>`).join('')}
       </div>
     </section>
@@ -362,6 +364,7 @@
             <span style="width:92px">${PARTS[k][0]}${k === 'tier' && u.scoreDetail && u.scoreDetail.tier ? ' ' + u.scoreDetail.tier + '급' : ''}</span>
             <div style="flex:1;height:8px;background:#E5E5EA;border-radius:4px;overflow:hidden"><div style="width:${v * 100}%;height:100%;background:#007AFF"></div></div>
             <span style="width:56px;text-align:right" class="muted">${got}/${rec.weights[k]}</span></div>`; }).join('')}
+          ${u.scoreDetail && u.scoreDetail.bonus ? `<div style="display:flex;align-items:center;gap:10px;font-size:14px"><span style="width:92px;font-weight:600" class="accent">가산점</span><span style="flex:1" class="small">${esc(u.scoreDetail.gold.join('·'))} 역세권</span><span style="width:56px;text-align:right;font-weight:700" class="accent">+${u.scoreDetail.bonus}</span></div>` : ''}
           <div class="small muted">${u.scoreDetail ? `강남 약 ${u.scoreDetail.gangnamMin}분${u.scoreDetail.walk ? ' (역까지 ' + esc(u.scoreDetail.walk) + ')' : ''} · 1년 거래 ${u.scoreDetail.tradesPerYear}건${u.scoreDetail.turnover != null ? ' (세대의 ' + (u.scoreDetail.turnover * 100).toFixed(1) + '%)' : ''}${u.scoreDetail.hall ? ' · ' + esc(u.scoreDetail.hall) : ''}` : ''}. 막대에 마우스를 올리면 기준이 보여요.</div></div>` : ''}
       </aside>
     </section>
