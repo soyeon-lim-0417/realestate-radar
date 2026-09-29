@@ -7,6 +7,7 @@
 import json
 import os
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -19,8 +20,11 @@ API = "https://dapi.kakao.com/v2/local/"
 def get(path, params, key):
     url = API + path + "?" + urllib.parse.urlencode(params)
     req = urllib.request.Request(url, headers={"Authorization": f"KakaoAK {key}"})
-    with urllib.request.urlopen(req, timeout=15) as r:
-        return json.loads(r.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            return json.loads(r.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:  # 키 오류·카카오맵 미설정 등은 이유를 보여줌
+        raise RuntimeError(f"HTTP {e.code}: {e.read()[:200].decode('utf-8', 'replace')}")
 
 
 def nearest(key, x, y, code, radius, name_has=None):
