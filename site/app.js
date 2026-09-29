@@ -328,6 +328,24 @@
       <div class="tile"><div class="small muted">전고점 (2020~22년 상승장)</div><div class="v">${u.peak ? won(pk) : '–'}</div><div class="small muted">${u.peak ? dateLabel(u.peak.date).slice(0, 7) + ' · ' + u.peak.floor + '층' : '그때 거래가 없어요 (신축 등)'}${u.ath && u.peak && u.ath.price > u.peak.price ? `<br>역대 최고 ${won(u.ath.price)} (${dateLabel(u.ath.date).slice(0, 7)})` : ''}</div></div>
       <div class="tile blue"><div class="small muted">전고점보다</div><div class="v">${u.drop == null ? '–' : u.drop >= 0 ? Math.round(u.drop * 100) + '% 낮음' : Math.round(-u.drop * 100) + '% 높음'}</div><div class="small muted">${u.drop != null && u.drop < 0 ? '전고점을 이미 넘었어요' : ''}</div></div>
     </section>
+    <section class="card">
+      <div class="card-head"><h2>단지 정보</h2><span class="small muted">${u.complex && u.complex.source === 'kapt' ? '공동주택관리정보시스템 · 국토교통부 실거래가' : '세대수는 거래량으로 추정한 값이에요'}</span></div>
+      <div class="grid g6">
+        ${[['세대수', u.complex && u.complex.households ? hhText(u.complex) + (u.complex.source === 'kapt' ? '' : ' (추정)') : '확인 전'],
+           ['급지', u.scoreDetail && u.scoreDetail.tier ? u.scoreDetail.tier + '급지' : '–'],
+           ['구조', esc((u.complex && u.complex.hall) || '–')],
+           ['준공', `${u.built || '?'}년 (${age}년차)`],
+           ['전용 · 평형', `${u.area}㎡ · 약 ${u.pyeong}평`],
+           ['역까지', esc((u.complex && u.complex.walk) || '–')],
+           ['동 수 · 난방', u.complex && u.complex.source === 'kapt' ? `${u.complex.dongCnt || '–'}개 동 · ${esc(u.complex.heat || '–')}` : '–'],
+           ['전세 (1년 중간값)', u.jeonse ? won(u.jeonse) : '거래 없음'],
+           ['전세가율', u.jratio ? pct(u.jratio) : '–'],
+           ['거래 (6개월 · 2년)', `${u.trades6m}건 · ${u.trades2y}건`],
+           ['재건축', age >= 30 ? `${age}년차 · 검토 가능 연한` : `${age}년차 · 30년 전`],
+           ['주소', `${esc(u.dong)} ${esc(u.jibun)}`]]
+          .map(([k, v]) => `<div style="background:#F2F2F7;border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px"><span class="small muted">${k}</span><span style="font-size:15px;font-weight:600">${v}</span></div>`).join('')}
+      </div>
+    </section>
     <section class="row">
       <div class="grow card">
         <div class="card-head"><h2>가격 흐름 한눈에</h2><span class="small muted">점에 마우스를 올리면 거래 정보가 보여요</span></div>
@@ -345,6 +363,9 @@
             <div style="flex:1;height:8px;background:#E5E5EA;border-radius:4px;overflow:hidden"><div style="width:${v * 100}%;height:100%;background:#007AFF"></div></div>
             <span style="width:56px;text-align:right" class="muted">${got}/${rec.weights[k]}</span></div>`; }).join('')}
           <div class="small muted">${u.scoreDetail ? `강남 약 ${u.scoreDetail.gangnamMin}분${u.scoreDetail.walk ? ' (역까지 ' + esc(u.scoreDetail.walk) + ')' : ''} · 1년 거래 ${u.scoreDetail.tradesPerYear}건${u.scoreDetail.turnover != null ? ' (세대의 ' + (u.scoreDetail.turnover * 100).toFixed(1) + '%)' : ''}${u.scoreDetail.hall ? ' · ' + esc(u.scoreDetail.hall) : ''}` : ''}. 막대에 마우스를 올리면 기준이 보여요.</div></div>` : ''}
+      </aside>
+    </section>
+    <section class="grid g2" style="align-items:start">
         <div class="card"><h2>${top ? '왜 추천했나요?' : '이 단지 한 줄 평'}</h2>
           <div style="font-size:14px">${esc(u.reason || '조건(예산·거래 수)에 맞지 않아 추천 후보에서 빠진 단지예요.')}</div>
           <div class="tags">${(u.tags || []).map((t) => `<span class="tag">${esc(t)}</span>`).join('')}</div>
@@ -361,22 +382,6 @@
             <div class="kv"><span>이사·인테리어</span><span>${wonMan(prefs.moving + prefs.interior)}</span></div>
             <div class="kv"><span>매달 갚을 돈</span><span>약 ${wonMan(Math.round(money.monthly))}</span></div></div>
           <a class="btn white" href="#/calc/${encodeURIComponent(u.id)}">계산기에서 바꿔보기</a></div>
-      </aside>
-    </section>
-    <section class="row">
-      <div class="grow card"><h2>단지 정보</h2>
-        <div class="grid g4">
-          ${[['세대수', u.complex && u.complex.households ? hhText(u.complex) + (u.complex.source === 'kapt' ? '' : ' (거래량으로 추정)') : '확인 전'],
-             ...(u.complex && u.complex.source === 'kapt' ? [['동 수', (u.complex.dongCnt || '–') + '개 동'], ['난방', esc(u.complex.heat || '–')], ['주차 (세대당)', u.complex.parking ? u.complex.parking + '대' : '–']] : []),
-             ['준공', `${u.built || '?'}년 (${age}년차)`], ['전용 · 평형', `${u.area}㎡ · 약 ${u.pyeong}평`], ['최근 2년 거래', `${u.trades2y}건`], ['최근 6개월 거래', `${u.trades6m}건`],
-             ['전세 (최근 1년 중간값)', u.jeonse ? won(u.jeonse) : '거래 없음'], ['전세가율', u.jratio ? pct(u.jratio) : '–'], ['마지막 거래', `${dateLabel(u.last.date)} · ${u.last.floor}층`], ['주소', `${esc(u.dong)} ${esc(u.jibun)}`]]
-            .map(([k, v]) => `<div style="background:#F2F2F7;border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:4px"><span class="small muted">${k}</span><span style="font-size:16px;font-weight:600">${v}</span></div>`).join('')}
-        </div>
-        <div class="small muted">${u.complex && u.complex.source === 'kapt' ? '세대수·동 수·난방·주차: 공동주택관리정보시스템. ' : '세대수는 거래량으로 추정한 값이에요. 공동주택관리정보시스템 API를 신청하면 정확한 값으로 바뀌어요. '}관리비·용적률·대지지분은 2단계에서 연결해요.</div>
-      </div>
-      <div class="card side-w"><h2>재건축</h2>
-        ${age >= 30 ? `<div style="font-size:15px">준공 ${age}년차라 <b>재건축을 검토할 수 있는 나이</b>예요.</div>` : `<div style="font-size:15px">준공 ${age}년차예요. 보통 30년이 지나야 재건축을 검토해요.</div>`}
-        <div class="small muted">어느 단계까지 왔는지는 2단계에서 서울시 정비사업 정보몽땅과 연결해요.</div></div>
     </section>
     ${region ? `<section style="display:flex;flex-direction:column;gap:12px">
       <div class="sec-title"><h2>이 동네 흐름</h2><a class="small" href="#/region/${region.lawd}">${esc(region.name)} 리포트 전체 보기</a></div>
